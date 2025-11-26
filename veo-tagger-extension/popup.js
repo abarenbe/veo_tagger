@@ -943,6 +943,7 @@ document.addEventListener('DOMContentLoaded', () => {
             li.style.opacity = '0.9';
         }
 
+        // Time span
                 const timeSpan = document.createElement('span');
                 timeSpan.className = 'tag-time';
         let timeText = formatTime(tag.timestamp);
@@ -953,6 +954,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         timeSpan.textContent = timeText;
 
+        // Info span
                 const infoSpan = document.createElement('span');
                 let infoText = `${tag.name}`;
                 if (tag.player) {
@@ -967,7 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show child count for parent tags
         if (tag.childTags && tag.childTags.length > 0) {
             infoText += ` (${tag.childTags.length} details)`;
-                }
+        }
                 infoSpan.textContent = infoText;
                 infoSpan.style.flexGrow = '1';
                 infoSpan.style.marginLeft = '10px';
@@ -981,23 +983,6 @@ document.addEventListener('DOMContentLoaded', () => {
         infoSpan.onclick = seekHandler;
         timeSpan.title = 'Click to seek to this timestamp';
         infoSpan.title = 'Click to seek to this timestamp';
-
-        // Add Details button for duration tags (only on parent tags)
-        if (!isChild && tag.type === 'duration') {
-            const detailsBtn = document.createElement('button');
-            detailsBtn.textContent = '+';
-            detailsBtn.style.backgroundColor = '#3498db';
-            detailsBtn.style.padding = '2px 6px';
-            detailsBtn.style.fontSize = '10px';
-            detailsBtn.style.width = 'auto';
-            detailsBtn.style.marginRight = '5px';
-            detailsBtn.title = 'Add details to this tag';
-            detailsBtn.onclick = (e) => {
-                e.stopPropagation();
-                addDetailsToTag(tag);
-            };
-            li.appendChild(detailsBtn);
-        }
 
         // Note button - Pencil Icon
         const noteBtn = document.createElement('button');
@@ -1028,6 +1013,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
+        // Delete button
                 const deleteBtn = document.createElement('button');
                 deleteBtn.textContent = 'x';
                 deleteBtn.style.backgroundColor = '#e74c3c';
@@ -1056,11 +1042,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 };
 
-        li.insertBefore(timeSpan, li.firstChild);
-        li.insertBefore(infoSpan, noteBtn);
+        // Append elements in correct order: timeSpan, infoSpan, [detailsBtn], noteBtn, deleteBtn
+                li.appendChild(timeSpan);
+                li.appendChild(infoSpan);
+
+        // Add Details button for duration tags (only on parent tags)
+        if (!isChild && tag.type === 'duration') {
+            const detailsBtn = document.createElement('button');
+            detailsBtn.textContent = '+';
+            detailsBtn.style.backgroundColor = '#3498db';
+            detailsBtn.style.padding = '2px 6px';
+            detailsBtn.style.fontSize = '10px';
+            detailsBtn.style.width = 'auto';
+            detailsBtn.style.marginRight = '5px';
+            detailsBtn.title = 'Add details to this tag';
+            detailsBtn.onclick = (e) => {
+                e.stopPropagation();
+                addDetailsToTag(tag);
+            };
+            li.appendChild(detailsBtn);
+        }
+
         li.appendChild(noteBtn);
-                li.appendChild(deleteBtn);
-                recordedTagsList.appendChild(li);
+        li.appendChild(deleteBtn);
+        recordedTagsList.appendChild(li);
     }
 
     function openNoteModalForChild(parentTag, childIndex) {
