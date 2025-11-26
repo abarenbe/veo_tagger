@@ -277,21 +277,9 @@
       <!-- Tags buttons will be generated here -->
     </div>
 
-    <hr>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <h3>On Field</h3>
-        <button id="lineup-btn"
-          style="width: auto; padding: 2px 8px; font-size: 11px; background-color: #3498db;">Lineup</button>
-      </div>
-      <label style="font-size: 11px; display: flex; align-items: center; cursor: pointer;">
-        <input type="checkbox" id="sub-mode-toggle" style="width: auto; margin-right: 5px;"> Sub Mode
-      </label>
-    </div>
-    <div id="on-field-container"
-      style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 5px; margin-bottom: 15px;">
-      <!-- On Field players will be generated here -->
-    </div>
+    <!-- Hidden elements for compatibility -->
+    <input type="checkbox" id="sub-mode-toggle" style="display: none;">
+    <div id="on-field-container" style="display: none;"></div>
 
     <hr>
     <div style="display: flex; justify-content: space-between; align-items: center;">

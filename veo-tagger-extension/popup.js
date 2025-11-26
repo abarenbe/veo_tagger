@@ -546,34 +546,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const hrs = viewMain.querySelectorAll('hr');
         hrs.forEach(hr => hr.style.display = 'block');
 
-        // Restore h3 headers
+        // Restore h3 headers (only Recorded Tags now, Players are in renderTags)
         const h3s = viewMain.querySelectorAll('h3');
-        h3s.forEach((h3, index) => {
+        h3s.forEach((h3) => {
             h3.style.display = 'block';
-            // Restore original text
-            if (index === 0) h3.textContent = 'On Field';
-            if (index === 1) h3.textContent = 'Recorded Tags';
+            if (h3.textContent.includes('Recorded') || h3.textContent.includes('Recent')) {
+                h3.textContent = 'Recorded Tags';
+            }
         });
 
-        // Show lineup button and sub mode toggle
-        const lineupBtn = document.getElementById('lineup-btn');
-        const subModeToggle = document.getElementById('sub-mode-toggle');
-        if (lineupBtn) lineupBtn.parentElement.style.display = 'flex';
-        if (subModeToggle) subModeToggle.parentElement.style.display = 'flex';
-
-        // Show on field container and recorded tags
-        if (onFieldContainer.parentElement) onFieldContainer.parentElement.style.display = 'block';
+        // Show recorded tags
         if (recordedTagsList.parentElement) recordedTagsList.parentElement.style.display = 'block';
 
         // Show sort button
         const sortBtn = document.getElementById('sort-toggle-btn');
         if (sortBtn) sortBtn.style.display = 'inline-block';
 
-            renderBoardSelect();
-            renderTags();
-            renderRecordedTags();
-            renderOnField();
-        }
+        renderBoardSelect();
+        renderTags(); // Now includes Players section
+        renderRecordedTags();
+    }
 
     function renderRecentGamesView() {
         // Hide the game tagging interface
@@ -835,7 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Render this board's own tags
-        activeBoard.tags.forEach(tag => {
+            activeBoard.tags.forEach(tag => {
             if (tag.type === 'section') {
                 renderSectionDivider(tag);
             } else {
@@ -888,6 +880,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const line2 = document.createElement('div');
         line2.style.cssText = 'flex: 1; height: 1px; background: #34495e;';
 
+        // Lineup button
+        const lineupBtnInline = document.createElement('button');
+        lineupBtnInline.textContent = 'Lineup';
+        lineupBtnInline.style.cssText = 'padding: 2px 6px; font-size: 10px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 8px;';
+        lineupBtnInline.onclick = () => {
+            renderLineup();
+            lineupModal.style.display = 'flex';
+        };
+
         // Sub mode toggle
         const subToggleLabel = document.createElement('label');
         subToggleLabel.style.cssText = 'display: flex; align-items: center; font-size: 10px; color: #e74c3c; cursor: pointer; white-space: nowrap;';
@@ -910,6 +911,7 @@ document.addEventListener('DOMContentLoaded', () => {
         divider.appendChild(line1);
         divider.appendChild(label);
         divider.appendChild(line2);
+        divider.appendChild(lineupBtnInline);
         divider.appendChild(subToggleLabel);
         tagsContainer.appendChild(divider);
 
@@ -1015,8 +1017,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTagButton(tag, sourceBoardId, isIncluded = false) {
-        const btn = document.createElement('button');
-        btn.className = 'tag-btn';
+                const btn = document.createElement('button');
+                btn.className = 'tag-btn';
 
         // Handle width property (grid is 6 columns: full=6, half=3, third=2)
         const width = tag.width || 'half'; // default to half (2 per row)
@@ -1041,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.style.animation = 'pulse 1s infinite';
             btn.classList.add('duration-active');
         } else {
-            btn.style.backgroundColor = tag.color;
+                btn.style.backgroundColor = tag.color;
         }
 
         // Dim included tags slightly
@@ -1049,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.style.opacity = '0.85';
         }
 
-        btn.textContent = tag.name;
+                btn.textContent = tag.name;
 
         // Show indicator if tag has a sub-board
         if (tag.subTagBoard) {
@@ -1194,7 +1196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show child count for parent tags
         if (tag.childTags && tag.childTags.length > 0) {
             infoText += ` (${tag.childTags.length} details)`;
-        }
+                }
                 infoSpan.textContent = infoText;
                 infoSpan.style.flexGrow = '1';
                 infoSpan.style.marginLeft = '10px';
@@ -2698,11 +2700,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Export Function ---
-    function exportData() {
-        if (state.recordedTags.length === 0) {
-            alert("No tags to export.");
-            return;
-        }
+        function exportData() {
+            if (state.recordedTags.length === 0) {
+                alert("No tags to export.");
+                return;
+            }
 
         const headers = ["Timestamp", "End Time", "Name", "Type", "Duration (s)", "Hotkey", "Player", "Note", "Parent Tag"];
         const rows = [];
@@ -2734,15 +2736,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function formatTagForExport(tag, parentName) {
-        const time = formatTime(tag.timestamp);
+                const time = formatTime(tag.timestamp);
         const endTime = tag.endTime ? formatTime(tag.endTime) : '';
-        const duration = tag.type === 'duration' ? (tag.duration ? tag.duration.toFixed(1) : 'Ongoing') : '';
-        const name = `"${tag.name.replace(/"/g, '""')}"`;
+                const duration = tag.type === 'duration' ? (tag.duration ? tag.duration.toFixed(1) : 'Ongoing') : '';
+                const name = `"${tag.name.replace(/"/g, '""')}"`;
 
-        let playerInfo = '';
-        if (tag.player) {
-            playerInfo = `"${tag.player.number} ${tag.player.name}"`;
-        }
+                let playerInfo = '';
+                if (tag.player) {
+                    playerInfo = `"${tag.player.number} ${tag.player.name}"`;
+                }
 
         const note = tag.note ? `"${tag.note.replace(/"/g, '""')}"` : '';
         const parent = parentName ? `"${parentName.replace(/"/g, '""')}"` : '';
@@ -2762,15 +2764,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const jsonContent = JSON.stringify(exportData, null, 2);
         const blob = new Blob([jsonContent], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+            const url = URL.createObjectURL(blob);
 
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
         link.setAttribute("download", `veo-tagger-boards-${new Date().toISOString().slice(0, 10)}.json`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         URL.revokeObjectURL(url);
     }
 
@@ -2790,7 +2792,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const board of data.boards) {
                     if (!board.id || !board.name || !Array.isArray(board.tags)) {
                         alert(`Invalid board found: ${board.name || 'Unknown'}. Missing required fields.`);
-                        return;
+                return;
                     }
                 }
 
@@ -2917,7 +2919,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(`Import complete!\n${importedCount} board(s) imported.`);
     }
 
-    // --- Helpers ---
+        // --- Helpers ---
     function openNoteModal(tag) {
         state.currentEditingTagIndex = state.recordedTags.indexOf(tag);
         noteInput.value = tag.note || '';
