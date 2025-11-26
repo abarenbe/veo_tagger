@@ -562,9 +562,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const sortBtn = document.getElementById('sort-toggle-btn');
         if (sortBtn) sortBtn.style.display = 'inline-block';
 
-        renderBoardSelect();
+            renderBoardSelect();
         renderTags(); // Now includes Players section
-        renderRecordedTags();
+            renderRecordedTags();
     }
 
     function renderRecentGamesView() {
@@ -915,19 +915,19 @@ document.addEventListener('DOMContentLoaded', () => {
         divider.appendChild(subToggleLabel);
         tagsContainer.appendChild(divider);
 
-        // Player buttons container
+        // Player buttons container - use grid for consistent sizing
         const playersContainer = document.createElement('div');
         playersContainer.style.cssText = `
             grid-column: 1/-1;
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
             gap: 4px;
             margin-bottom: 5px;
         `;
 
         if (state.matchState.onField.length === 0) {
             const emptyMsg = document.createElement('span');
-            emptyMsg.style.cssText = 'font-size: 11px; color: #7f8c8d; font-style: italic;';
+            emptyMsg.style.cssText = 'font-size: 11px; color: #7f8c8d; font-style: italic; grid-column: 1/-1;';
             emptyMsg.textContent = 'No players on field. Click Lineup to set.';
             playersContainer.appendChild(emptyMsg);
         } else {
@@ -939,15 +939,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const btn = document.createElement('button');
                 btn.style.cssText = `
-                    padding: 6px 10px;
-                    font-size: 11px;
+                    padding: 8px 4px;
+                    font-size: 12px;
                     border-radius: 4px;
                     border: ${isSubMode ? '2px solid #e74c3c' : 'none'};
                     cursor: pointer;
                     background-color: ${player.isGuest ? '#8e44ad' : '#34495e'};
                     color: white;
-                    min-width: 45px;
                     text-align: center;
+                    width: 100%;
                 `;
 
                 btn.innerHTML = `<strong>${player.number}</strong>`;
@@ -2365,16 +2365,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Lineup Management (lineupBtn may be null if using inline button in Players section)
         if (lineupBtn) {
-            lineupBtn.addEventListener('click', () => {
-                renderLineup();
-                lineupModal.style.display = 'flex';
-            });
+        lineupBtn.addEventListener('click', () => {
+            renderLineup();
+            lineupModal.style.display = 'flex';
+        });
         }
 
         if (closeLineupBtn) {
-            closeLineupBtn.addEventListener('click', () => {
-                lineupModal.style.display = 'none';
-            });
+        closeLineupBtn.addEventListener('click', () => {
+            lineupModal.style.display = 'none';
+        });
         }
 
         // Add Guest Player button in lineup modal
