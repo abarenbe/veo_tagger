@@ -102,6 +102,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveCompositionBtn = document.getElementById('save-composition-btn');
     const cancelCompositionBtn = document.getElementById('cancel-composition-btn');
 
+    // Import/Export elements
+    const importBoardsBtn = document.getElementById('import-boards-btn');
+    const exportBoardsBtn = document.getElementById('export-boards-btn');
+    const importFileInput = document.getElementById('import-file-input');
+    const importModal = document.getElementById('import-modal');
+    const importPreview = document.getElementById('import-preview');
+    const importOverwrite = document.getElementById('import-overwrite');
+    const confirmImportBtn = document.getElementById('confirm-import-btn');
+    const cancelImportBtn = document.getElementById('cancel-import-btn');
+
     // --- State ---
     let state = {
         currentView: 'main', // 'main' or 'settings'
@@ -139,7 +149,10 @@ document.addEventListener('DOMContentLoaded', () => {
         resumeTimestamp: null,
 
         // Double-tap hotkey detection
-        lastHotkeyPress: {}
+        lastHotkeyPress: {},
+
+        // Pending import data
+        pendingImport: null
     };
 
     // Default Data
@@ -2323,8 +2336,39 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Export Data
+        // Export Data (CSV)
         exportBtn.addEventListener('click', exportData);
+
+        // Import/Export Boards (JSON)
+        if (importBoardsBtn) {
+            importBoardsBtn.addEventListener('click', () => {
+                importFileInput.click();
+            });
+        }
+
+        if (importFileInput) {
+            importFileInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    handleImportFile(e.target.files[0]);
+                    e.target.value = ''; // Reset so same file can be selected again
+                }
+            });
+        }
+
+        if (exportBoardsBtn) {
+            exportBoardsBtn.addEventListener('click', exportBoards);
+        }
+
+        if (confirmImportBtn) {
+            confirmImportBtn.addEventListener('click', executeImport);
+        }
+
+        if (cancelImportBtn) {
+            cancelImportBtn.addEventListener('click', () => {
+                importModal.style.display = 'none';
+                state.pendingImport = null;
+            });
+        }
 
         // Storage Listener (Real-time updates)
         chrome.storage.onChanged.addListener((changes, namespace) => {
@@ -2543,7 +2587,174 @@ document.addEventListener('DOMContentLoaded', () => {
         return [time, endTime, name, tag.type, duration, tag.hotkey || '', playerInfo, note, parent].join(",");
     }
 
-        // --- Helpers ---
+    // --- Board Import/Export Functions ---
+    function exportBoards() {
+        const exportData = {
+            version: "1.0",
+            exportDate: new Date().toISOString(),
+            type: "veo-tagger-boards",
+            boards: state.boards,
+            boardTagsList: state.boardTagsList
+        };
+
+        const jsonContent = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `veo-tagger-boards-${new Date().toISOString().slice(0, 10)}.json`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function handleImportFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                // Validate the import data
+                if (!data.boards || !Array.isArray(data.boards)) {
+                    alert("Invalid import file: No boards found.");
+                    return;
+                }
+
+                // Validate each board has required fields
+                for (const board of data.boards) {
+                    if (!board.id || !board.name || !Array.isArray(board.tags)) {
+                        alert(`Invalid board found: ${board.name || 'Unknown'}. Missing required fields.`);
+                        return;
+                    }
+                }
+
+                // Store pending import and show preview
+                state.pendingImport = data;
+                renderImportPreview(data);
+                importModal.style.display = 'flex';
+            } catch (err) {
+                alert("Error parsing import file: " + err.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function renderImportPreview(data) {
+        importPreview.innerHTML = '';
+
+        data.boards.forEach(board => {
+            const existingBoard = state.boards.find(b => b.id === board.id);
+            const exists = !!existingBoard;
+
+            const item = document.createElement('label');
+            item.style.display = 'flex';
+            item.style.alignItems = 'center';
+            item.style.padding = '8px';
+            item.style.marginBottom = '4px';
+            item.style.backgroundColor = exists ? '#fff3cd' : '#d4edda';
+            item.style.borderRadius = '4px';
+            item.style.cursor = 'pointer';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = true;
+            checkbox.value = board.id;
+            checkbox.className = 'import-board-checkbox';
+            checkbox.style.marginRight = '10px';
+
+            const info = document.createElement('div');
+            info.style.flexGrow = '1';
+            info.innerHTML = `
+                <strong>${board.name}</strong>
+                <span style="font-size: 11px; color: #666; margin-left: 8px;">
+                    ${board.tags.length} tags
+                    ${exists ? '<span style="color: #856404;">(exists)</span>' : '<span style="color: #155724;">(new)</span>'}
+                </span>
+            `;
+
+            item.appendChild(checkbox);
+            item.appendChild(info);
+            importPreview.appendChild(item);
+        });
+
+        // Show board categories if present
+        if (data.boardTagsList && data.boardTagsList.length > 0) {
+            const catItem = document.createElement('div');
+            catItem.style.padding = '8px';
+            catItem.style.marginTop = '10px';
+            catItem.style.backgroundColor = '#e3f2fd';
+            catItem.style.borderRadius = '4px';
+            catItem.style.fontSize = '12px';
+            catItem.innerHTML = `<strong>Categories:</strong> ${data.boardTagsList.join(', ')}`;
+            importPreview.appendChild(catItem);
+        }
+    }
+
+    function executeImport() {
+        if (!state.pendingImport) return;
+
+        const selectedIds = Array.from(
+            importPreview.querySelectorAll('.import-board-checkbox:checked')
+        ).map(cb => cb.value);
+
+        if (selectedIds.length === 0) {
+            alert("No boards selected for import.");
+            return;
+        }
+
+        const overwrite = importOverwrite.checked;
+        let importedCount = 0;
+        let skippedCount = 0;
+
+        state.pendingImport.boards.forEach(board => {
+            if (!selectedIds.includes(board.id)) return;
+
+            const existingIndex = state.boards.findIndex(b => b.id === board.id);
+
+            if (existingIndex >= 0) {
+                if (overwrite) {
+                    // Replace existing board
+                    state.boards[existingIndex] = board;
+                    importedCount++;
+                } else {
+                    // Create a copy with new ID
+                    const newBoard = {
+                        ...board,
+                        id: board.id + '_' + Date.now(),
+                        name: board.name + ' (Imported)'
+                    };
+                    state.boards.push(newBoard);
+                    importedCount++;
+                }
+            } else {
+                // Add new board
+                state.boards.push(board);
+                importedCount++;
+            }
+        });
+
+        // Import board categories if present
+        if (state.pendingImport.boardTagsList) {
+            state.pendingImport.boardTagsList.forEach(tag => {
+                if (!state.boardTagsList.includes(tag)) {
+                    state.boardTagsList.push(tag);
+                }
+            });
+        }
+
+        saveGlobalState();
+        render();
+
+        importModal.style.display = 'none';
+        state.pendingImport = null;
+
+        alert(`Import complete!\n${importedCount} board(s) imported.`);
+    }
+
+    // --- Helpers ---
     function openNoteModal(tag) {
         state.currentEditingTagIndex = state.recordedTags.indexOf(tag);
         noteInput.value = tag.note || '';

@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "exportDate": "2025-11-26",
+  "type": "veo-tagger-boards",
+  "boardTagsList": ["Soccer", "Game Phase", "Possession"],
+  "boards": [
+    {
+      "id": "game_state",
+      "name": "Game State",
+      "boardTags": ["Soccer", "Game Phase"],
+      "includeTags": { "from": [], "position": "top" },
+      "showRecordedFrom": "*",
+      "tags": [
+        { "id": "gs1", "name": "1st Half", "type": "duration", "hotkey": "1", "color": "#2c3e50", "subTagBoard": null },
+        { "id": "gs2", "name": "2nd Half", "type": "duration", "hotkey": "2", "color": "#34495e", "subTagBoard": null },
+        { "id": "gs3", "name": "In Possession", "type": "duration", "hotkey": "p", "color": "#27ae60", "subTagBoard": "possession_details" },
+        { "id": "gs4", "name": "Out of Possession", "type": "duration", "hotkey": "o", "color": "#e74c3c", "subTagBoard": null },
+        { "id": "gs5", "name": "Contested", "type": "duration", "hotkey": "c", "color": "#f39c12", "subTagBoard": null },
+        { "id": "gs6", "name": "Out of Play", "type": "duration", "hotkey": "x", "color": "#95a5a6", "subTagBoard": null },
+        { "id": "gs7", "name": "Substitution", "type": "event", "hotkey": "s", "color": "#9b59b6", "subTagBoard": null }
+      ]
+    },
+    {
+      "id": "possession_details",
+      "name": "Possession Details",
+      "boardTags": ["Soccer", "Possession"],
+      "includeTags": { "from": ["game_state"], "position": "top" },
+      "showRecordedFrom": ["game_state", "possession_details"],
+      "tags": [
+        { "id": "pd1", "name": "Pass", "type": "event", "hotkey": "p", "color": "#3498db", "subTagBoard": null },
+        { "id": "pd2", "name": "Dribble", "type": "event", "hotkey": "d", "color": "#9b59b6", "subTagBoard": null },
+        { "id": "pd3", "name": "Shot", "type": "event", "hotkey": "s", "color": "#e74c3c", "subTagBoard": null },
+        { "id": "pd4", "name": "Cross", "type": "event", "hotkey": "c", "color": "#1abc9c", "subTagBoard": null },
+        { "id": "pd5", "name": "Turn", "type": "event", "hotkey": "t", "color": "#f1c40f", "subTagBoard": null },
+        { "id": "pd6", "name": "Lost Ball", "type": "event", "hotkey": "l", "color": "#7f8c8d", "subTagBoard": null },
+        { "id": "pd7", "name": "A3 (Attack)", "type": "event", "hotkey": "a", "color": "#e74c3c", "subTagBoard": null },
+        { "id": "pd8", "name": "M3 (Middle)", "type": "event", "hotkey": "m", "color": "#f39c12", "subTagBoard": null },
+        { "id": "pd9", "name": "D3 (Defense)", "type": "event", "hotkey": "z", "color": "#27ae60", "subTagBoard": null },
+        { "id": "pd10", "name": "Left", "type": "event", "hotkey": "q", "color": "#2980b9", "subTagBoard": null },
+        { "id": "pd11", "name": "Center", "type": "event", "hotkey": "w", "color": "#8e44ad", "subTagBoard": null },
+        { "id": "pd12", "name": "Right", "type": "event", "hotkey": "e", "color": "#16a085", "subTagBoard": null }
+      ]
+    }
+  ]
+}
+

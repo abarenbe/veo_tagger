@@ -299,13 +299,21 @@
 
   <!-- Settings View -->
   <div id="view-settings" class="view" style="display: none;">
-    <div style="margin-bottom: 15px; display: flex; justify-content: space-between;">
+    <div style="margin-bottom: 15px; display: flex; justify-content: space-between; gap: 5px;">
       <button id="back-to-main-btn" style="background-color: #95a5a6; width: auto; padding: 5px 10px; font-size: 12px;">
-        &larr; Back to Game
+        &larr; Back
       </button>
-      <button id="export-btn" style="background-color: #9b59b6; width: auto; padding: 5px 10px; font-size: 12px;">
-        Export CSV
-      </button>
+      <div style="display: flex; gap: 5px;">
+        <button id="import-boards-btn" style="background-color: #3498db; width: auto; padding: 5px 10px; font-size: 12px;" title="Import boards from JSON">
+          Import
+        </button>
+        <button id="export-boards-btn" style="background-color: #27ae60; width: auto; padding: 5px 10px; font-size: 12px;" title="Export boards to JSON">
+          Export
+        </button>
+        <button id="export-btn" style="background-color: #9b59b6; width: auto; padding: 5px 10px; font-size: 12px;" title="Export tags to CSV">
+          CSV
+        </button>
+      </div>
     </div>
 
     <div class="tabs" style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -570,6 +578,28 @@
       </ul>
       <div class="modal-actions">
         <button id="close-lineup-btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file input for import -->
+  <input type="file" id="import-file-input" accept=".json" style="display: none;">
+
+  <!-- Import Preview Modal -->
+  <div id="import-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-height: 80vh; overflow-y: auto;">
+      <h3>Import Boards</h3>
+      <p style="font-size: 12px; color: #7f8c8d; margin-bottom: 10px;">Select which boards to import:</p>
+      <div id="import-preview" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px; background: #f9f9f9; margin-bottom: 10px;">
+        <!-- Import items will be listed here -->
+      </div>
+      <label style="display: flex; align-items: center; font-size: 12px; margin-bottom: 10px;">
+        <input type="checkbox" id="import-overwrite" style="margin-right: 8px;">
+        Overwrite existing boards with same ID
+      </label>
+      <div class="modal-actions">
+        <button id="confirm-import-btn">Import Selected</button>
+        <button id="cancel-import-btn" style="background-color: #95a5a6;">Cancel</button>
       </div>
     </div>
   </div>
