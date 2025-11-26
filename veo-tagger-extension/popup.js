@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tagTypeInput = document.getElementById('tag-type-input');
     const tagHotkeyInput = document.getElementById('tag-hotkey-input');
     const tagColorInput = document.getElementById('tag-color-input');
+    const tagSubboardInput = document.getElementById('tag-subboard-input');
     const saveTagBtn = document.getElementById('save-tag-btn');
     const cancelTagBtn = document.getElementById('cancel-tag-btn');
 
@@ -90,6 +91,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveNoteBtn = document.getElementById('save-note-btn');
     const cancelNoteBtn = document.getElementById('cancel-note-btn');
 
+    // Board composition elements
+    const editCompositionBtn = document.getElementById('edit-composition-btn');
+    const includeFromText = document.getElementById('include-from-text');
+    const showRecordedText = document.getElementById('show-recorded-text');
+    const compositionModal = document.getElementById('composition-modal');
+    const includeBoardsCheckboxes = document.getElementById('include-boards-checkboxes');
+    const includePositionSelect = document.getElementById('include-position-select');
+    const showRecordedCheckboxes = document.getElementById('show-recorded-checkboxes');
+    const saveCompositionBtn = document.getElementById('save-composition-btn');
+    const cancelCompositionBtn = document.getElementById('cancel-composition-btn');
+
     // --- State ---
     let state = {
         currentView: 'main', // 'main' or 'settings'
@@ -119,7 +131,15 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTagRealTime: null,
 
         // Track which tag is being edited
-        currentEditingTagIndex: null
+        currentEditingTagIndex: null,
+        currentEditingChildIndex: null,
+
+        // Track sub-tag mode (adding details to a parent tag)
+        addingToParentTagId: null,
+        resumeTimestamp: null,
+
+        // Double-tap hotkey detection
+        lastHotkeyPress: {}
     };
 
     // Default Data
@@ -127,45 +147,58 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             id: 'soccer_basic',
             name: 'Soccer (Basic)',
+            boardTags: ['Soccer'],
+            // NEW: Board composition fields
+            includeTags: { from: [], position: 'top' },
+            showRecordedFrom: '*', // '*' = all, or array of board IDs
             tags: [
-                { id: 't1', name: 'Goal', type: 'event', hotkey: 'g', color: '#f1c40f' },
-                { id: 't2', name: 'Foul', type: 'event', hotkey: 'f', color: '#e74c3c' },
-                { id: 't3', name: 'Corner', type: 'event', hotkey: 'c', color: '#3498db' },
-                { id: 't4', name: 'Shot', type: 'event', hotkey: 's', color: '#9b59b6' },
-                { id: 't5', name: 'Possession', type: 'duration', hotkey: 'p', color: '#2ecc71' }
+                { id: 't1', name: 'Goal', type: 'event', hotkey: 'g', color: '#f1c40f', subTagBoard: null },
+                { id: 't2', name: 'Foul', type: 'event', hotkey: 'f', color: '#e74c3c', subTagBoard: null },
+                { id: 't3', name: 'Corner', type: 'event', hotkey: 'c', color: '#3498db', subTagBoard: null },
+                { id: 't4', name: 'Shot', type: 'event', hotkey: 's', color: '#9b59b6', subTagBoard: null },
+                { id: 't5', name: 'Possession', type: 'duration', hotkey: 'p', color: '#2ecc71', subTagBoard: null }
             ]
         },
         {
             id: 'soccer_advanced',
             name: 'Soccer (Advanced)',
+            boardTags: ['Soccer'],
+            includeTags: { from: [], position: 'top' },
+            showRecordedFrom: '*',
             tags: [
-                { id: 'sa1', name: 'Goal', type: 'event', hotkey: 'g', color: '#f1c40f' },
-                { id: 'sa2', name: 'Assist', type: 'event', hotkey: 'a', color: '#f39c12' },
-                { id: 'sa3', name: 'Shot on Target', type: 'event', hotkey: 't', color: '#9b59b6' },
-                { id: 'sa4', name: 'Shot off Target', type: 'event', hotkey: 'o', color: '#8e44ad' },
-                { id: 'sa5', name: 'Corner', type: 'event', hotkey: 'c', color: '#3498db' },
-                { id: 'sa6', name: 'Foul', type: 'event', hotkey: 'f', color: '#e74c3c' },
-                { id: 'sa7', name: 'Yellow Card', type: 'event', hotkey: 'y', color: '#f1c40f' },
-                { id: 'sa8', name: 'Red Card', type: 'event', hotkey: 'r', color: '#c0392b' },
-                { id: 'sa9', name: 'Offside', type: 'event', hotkey: 'x', color: '#95a5a6' },
-                { id: 'sa10', name: 'Possession', type: 'duration', hotkey: 'p', color: '#2ecc71' }
+                { id: 'sa1', name: 'Goal', type: 'event', hotkey: 'g', color: '#f1c40f', subTagBoard: null },
+                { id: 'sa2', name: 'Assist', type: 'event', hotkey: 'a', color: '#f39c12', subTagBoard: null },
+                { id: 'sa3', name: 'Shot on Target', type: 'event', hotkey: 't', color: '#9b59b6', subTagBoard: null },
+                { id: 'sa4', name: 'Shot off Target', type: 'event', hotkey: 'o', color: '#8e44ad', subTagBoard: null },
+                { id: 'sa5', name: 'Corner', type: 'event', hotkey: 'c', color: '#3498db', subTagBoard: null },
+                { id: 'sa6', name: 'Foul', type: 'event', hotkey: 'f', color: '#e74c3c', subTagBoard: null },
+                { id: 'sa7', name: 'Yellow Card', type: 'event', hotkey: 'y', color: '#f1c40f', subTagBoard: null },
+                { id: 'sa8', name: 'Red Card', type: 'event', hotkey: 'r', color: '#c0392b', subTagBoard: null },
+                { id: 'sa9', name: 'Offside', type: 'event', hotkey: 'x', color: '#95a5a6', subTagBoard: null },
+                { id: 'sa10', name: 'Possession', type: 'duration', hotkey: 'p', color: '#2ecc71', subTagBoard: null }
             ]
         },
         {
             id: 'basketball',
             name: 'Basketball',
+            boardTags: ['Basketball'],
+            includeTags: { from: [], position: 'top' },
+            showRecordedFrom: '*',
             tags: [
-                { id: 'bb1', name: '2pt Make', type: 'event', hotkey: '2', color: '#2ecc71' },
-                { id: 'bb2', name: '2pt Miss', type: 'event', hotkey: 'w', color: '#e74c3c' },
-                { id: 'bb3', name: '3pt Make', type: 'event', hotkey: '3', color: '#27ae60' },
-                { id: 'bb4', name: '3pt Miss', type: 'event', hotkey: 'e', color: '#c0392b' },
-                { id: 'bb5', name: 'Free Throw', type: 'event', hotkey: '1', color: '#f39c12' },
-                { id: 'bb6', name: 'Foul', type: 'event', hotkey: 'f', color: '#e67e22' },
-                { id: 'bb7', name: 'Rebound', type: 'event', hotkey: 'r', color: '#3498db' },
-                { id: 'bb8', name: 'Turnover', type: 'event', hotkey: 't', color: '#95a5a6' }
+                { id: 'bb1', name: '2pt Make', type: 'event', hotkey: '2', color: '#2ecc71', subTagBoard: null },
+                { id: 'bb2', name: '2pt Miss', type: 'event', hotkey: 'w', color: '#e74c3c', subTagBoard: null },
+                { id: 'bb3', name: '3pt Make', type: 'event', hotkey: '3', color: '#27ae60', subTagBoard: null },
+                { id: 'bb4', name: '3pt Miss', type: 'event', hotkey: 'e', color: '#c0392b', subTagBoard: null },
+                { id: 'bb5', name: 'Free Throw', type: 'event', hotkey: '1', color: '#f39c12', subTagBoard: null },
+                { id: 'bb6', name: 'Foul', type: 'event', hotkey: 'f', color: '#e67e22', subTagBoard: null },
+                { id: 'bb7', name: 'Rebound', type: 'event', hotkey: 'r', color: '#3498db', subTagBoard: null },
+                { id: 'bb8', name: 'Turnover', type: 'event', hotkey: 't', color: '#95a5a6', subTagBoard: null }
             ]
         }
     ];
+
+    // Double-tap detection constants
+    const DOUBLE_TAP_MS = 300;
 
     // Color defaults for tag types
     const TAG_TYPE_COLORS = {
@@ -192,11 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadCurrentGameContext() {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab && tab.url) {
-            const match = tab.url.match(/matches\/([a-zA-Z0-9-]+)\//);
-            if (match && match[1]) {
-                state.currentMatchId = match[1];
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab && tab.url) {
+                const match = tab.url.match(/matches\/([a-zA-Z0-9-]+)\//);
+                if (match && match[1]) {
+                    state.currentMatchId = match[1];
 
                 // Set title from saved metadata or default
                 chrome.storage.local.get(['games'], (result) => {
@@ -269,9 +302,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeTab && activeTab.id === tabId) {
                     console.log("URL changed, reloading game context...");
                     await loadCurrentGameContext();
-                    await loadState();
-                    render();
-                }
+            await loadState();
+            render();
+        }
             }
         });
     }
@@ -280,30 +313,30 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadState() {
         console.log("Loading state...");
         const result = await chrome.storage.local.get(['tagBoards', 'activeBoardId', 'boardTagsList', 'teams', 'activeTeamId', 'games']);
-        console.log("Loaded result:", result);
+            console.log("Loaded result:", result);
 
-        // Global Settings
+            // Global Settings
         state.boardTagsList = result.boardTagsList || [];
 
-        if (result.tagBoards && Array.isArray(result.tagBoards) && result.tagBoards.length > 0) {
-            console.log("Found existing boards:", result.tagBoards.length);
-            state.boards = result.tagBoards;
-            state.activeBoardId = result.activeBoardId || state.boards[0].id;
-        } else {
-            console.log("No boards found (or empty), loading defaults...", DEFAULT_BOARDS);
+            if (result.tagBoards && Array.isArray(result.tagBoards) && result.tagBoards.length > 0) {
+                console.log("Found existing boards:", result.tagBoards.length);
+                state.boards = result.tagBoards;
+                state.activeBoardId = result.activeBoardId || state.boards[0].id;
+            } else {
+                console.log("No boards found (or empty), loading defaults...", DEFAULT_BOARDS);
             state.boards = JSON.parse(JSON.stringify(DEFAULT_BOARDS));
-            state.activeBoardId = state.boards[0].id;
+                state.activeBoardId = state.boards[0].id;
             saveGlobalState();
-        }
+            }
 
-        state.teams = result.teams || [];
-        state.activeTeamId = result.activeTeamId || (state.teams.length > 0 ? state.teams[0].id : null);
+            state.teams = result.teams || [];
+            state.activeTeamId = result.activeTeamId || (state.teams.length > 0 ? state.teams[0].id : null);
 
-        // Session Specific Data
-        const games = result.games || {};
+            // Session Specific Data
+            const games = result.games || {};
         const session = games[state.currentMatchId] || { tags: [], matchState: { onField: [], roster: [], guests: [] }, quickListBoardIds: [] };
 
-        state.recordedTags = session.tags || [];
+            state.recordedTags = session.tags || [];
         state.matchState = session.matchState || { onField: [], roster: [], guests: [] };
         state.quickListBoardIds = session.quickListBoardIds || [];
 
@@ -321,51 +354,51 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Sync onField with roster
-        if (state.matchState.onField.length > 0) {
-            state.matchState.onField.forEach(id => {
-                if (!state.matchState.roster.includes(id)) {
-                    state.matchState.roster.push(id);
+            if (state.matchState.onField.length > 0) {
+                state.matchState.onField.forEach(id => {
+                    if (!state.matchState.roster.includes(id)) {
+                        state.matchState.roster.push(id);
+                    }
+                });
+            }
+        }
+
+        function saveGlobalState() {
+            if (!state.boards || state.boards.length === 0) {
+                console.error("Attempted to save empty boards! Aborting save.", state.boards);
+                return;
+            }
+        console.log("Saving global state...", { boards: state.boards, teams: state.teams, boardTagsList: state.boardTagsList });
+            chrome.storage.local.set({
+                tagBoards: state.boards,
+                activeBoardId: state.activeBoardId,
+            boardTagsList: state.boardTagsList,
+                teams: state.teams,
+                activeTeamId: state.activeTeamId
+            }, () => {
+                if (chrome.runtime.lastError) {
+                    console.error("Error saving global state:", chrome.runtime.lastError);
+                } else {
+                    console.log("Global state saved successfully.");
                 }
             });
         }
-    }
 
-    function saveGlobalState() {
-        if (!state.boards || state.boards.length === 0) {
-            console.error("Attempted to save empty boards! Aborting save.", state.boards);
-            return;
-        }
-        console.log("Saving global state...", { boards: state.boards, teams: state.teams, boardTagsList: state.boardTagsList });
-        chrome.storage.local.set({
-            tagBoards: state.boards,
-            activeBoardId: state.activeBoardId,
-            boardTagsList: state.boardTagsList,
-            teams: state.teams,
-            activeTeamId: state.activeTeamId
-        }, () => {
-            if (chrome.runtime.lastError) {
-                console.error("Error saving global state:", chrome.runtime.lastError);
-            } else {
-                console.log("Global state saved successfully.");
-            }
-        });
-    }
-
-    function saveSessionState() {
-        console.log("Saving session state...", state.currentMatchId);
-        chrome.storage.local.get(['games'], (result) => {
-            if (chrome.runtime.lastError) {
-                console.error("Error getting games for save:", chrome.runtime.lastError);
-                return;
-            }
-            const games = result.games || {};
+        function saveSessionState() {
+            console.log("Saving session state...", state.currentMatchId);
+            chrome.storage.local.get(['games'], (result) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Error getting games for save:", chrome.runtime.lastError);
+                    return;
+                }
+                const games = result.games || {};
 
             // Preserve existing metadata if it exists
             const existingGame = games[state.currentMatchId] || {};
             const metadata = existingGame.metadata || {};
 
-            games[state.currentMatchId] = {
-                tags: state.recordedTags,
+                games[state.currentMatchId] = {
+                    tags: state.recordedTags,
                 matchState: state.matchState,
                 quickListBoardIds: state.quickListBoardIds,
                 metadata: {
@@ -373,16 +406,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     lastAccessed: Date.now(),
                     teamName: state.activeTeamId ? (state.teams.find(t => t.id === state.activeTeamId)?.name || '') : ''
                 }
-            };
-            chrome.storage.local.set({ games: games }, () => {
-                if (chrome.runtime.lastError) {
-                    console.error("Error saving session state:", chrome.runtime.lastError);
-                } else {
-                    console.log("Session state saved successfully.");
-                }
+                };
+                chrome.storage.local.set({ games: games }, () => {
+                    if (chrome.runtime.lastError) {
+                        console.error("Error saving session state:", chrome.runtime.lastError);
+                    } else {
+                        console.log("Session state saved successfully.");
+                    }
+                });
             });
-        });
-    }
+        }
 
     function updateGameMetadata(matchId, metadataUpdates) {
         chrome.storage.local.get(['games'], (result) => {
@@ -405,28 +438,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 lastAccessed: Date.now()
             };
             chrome.storage.local.set({ games: games });
-        });
-    }
+            });
+        }
 
-    function saveState() {
-        saveGlobalState();
-        saveSessionState();
-    }
+        function saveState() {
+            saveGlobalState();
+            saveSessionState();
+        }
 
     // --- Rendering ---
-    function render() {
-        if (state.currentView === 'main') {
-            viewMain.style.display = 'block';
-            viewSettings.style.display = 'none';
-            renderMainView();
-        } else {
-            viewMain.style.display = 'none';
-            viewSettings.style.display = 'block';
-            renderSettingsView();
+        function render() {
+            if (state.currentView === 'main') {
+                viewMain.style.display = 'block';
+                viewSettings.style.display = 'none';
+                renderMainView();
+            } else {
+                viewMain.style.display = 'none';
+                viewSettings.style.display = 'block';
+                renderSettingsView();
+            }
         }
-    }
 
-    function renderMainView() {
+        function renderMainView() {
         // Check if we're on a game page
         if (state.currentMatchId === 'default_session') {
             renderRecentGamesView();
@@ -469,11 +502,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const sortBtn = document.getElementById('sort-toggle-btn');
         if (sortBtn) sortBtn.style.display = 'inline-block';
 
-        renderBoardSelect();
-        renderTags();
-        renderRecordedTags();
-        renderOnField();
-    }
+            renderBoardSelect();
+            renderTags();
+            renderRecordedTags();
+            renderOnField();
+        }
 
     function renderRecentGamesView() {
         // Hide the game tagging interface
@@ -608,38 +641,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 recordedTagsList.appendChild(li);
             });
         });
-    }
+        }
 
-    function renderSettingsView() {
-        if (state.activeSettingsTab === 'boards') {
-            settingsBoardsPanel.style.display = 'block';
-            settingsTeamsPanel.style.display = 'none';
-            tabSettingsBoards.classList.add('active');
-            tabSettingsBoards.style.backgroundColor = '#3498db';
-            tabSettingsTeams.classList.remove('active');
-            tabSettingsTeams.style.backgroundColor = '#95a5a6';
+        function renderSettingsView() {
+            if (state.activeSettingsTab === 'boards') {
+                settingsBoardsPanel.style.display = 'block';
+                settingsTeamsPanel.style.display = 'none';
+                tabSettingsBoards.classList.add('active');
+                tabSettingsBoards.style.backgroundColor = '#3498db';
+                tabSettingsTeams.classList.remove('active');
+                tabSettingsTeams.style.backgroundColor = '#95a5a6';
 
-            renderBoardSelect();
+                renderBoardSelect();
             renderAvailableTags();
             renderBoardTags();
-            renderSettingsTagsList();
+            renderBoardComposition();
+                renderSettingsTagsList();
             renderQuickList();
-        } else {
-            settingsBoardsPanel.style.display = 'none';
-            settingsTeamsPanel.style.display = 'block';
-            tabSettingsBoards.classList.remove('active');
-            tabSettingsBoards.style.backgroundColor = '#95a5a6';
-            tabSettingsTeams.classList.add('active');
-            tabSettingsTeams.style.backgroundColor = '#3498db';
+            } else {
+                settingsBoardsPanel.style.display = 'none';
+                settingsTeamsPanel.style.display = 'block';
+                tabSettingsBoards.classList.remove('active');
+                tabSettingsBoards.style.backgroundColor = '#95a5a6';
+                tabSettingsTeams.classList.add('active');
+                tabSettingsTeams.style.backgroundColor = '#3498db';
 
-            renderTeamSelect();
-            renderRoster();
+                renderTeamSelect();
+                renderRoster();
+            }
         }
-    }
 
-    function renderBoardSelect() {
-        mainBoardSelect.innerHTML = '';
-        settingsBoardSelect.innerHTML = '';
+        function renderBoardSelect() {
+            mainBoardSelect.innerHTML = '';
+            settingsBoardSelect.innerHTML = '';
 
         // For main view: show only boards in the quick list, or all boards if quick list is empty
         let boardsToShowInMain = state.boards;
@@ -660,74 +694,164 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         boardsToShowInMain.forEach(board => {
-            const optionMain = document.createElement('option');
-            optionMain.value = board.id;
-            optionMain.textContent = board.name;
-            optionMain.selected = board.id === state.activeBoardId;
-            mainBoardSelect.appendChild(optionMain);
+                const optionMain = document.createElement('option');
+                optionMain.value = board.id;
+                optionMain.textContent = board.name;
+                optionMain.selected = board.id === state.activeBoardId;
+                mainBoardSelect.appendChild(optionMain);
         });
 
         // For settings view: show all boards
         state.boards.forEach(board => {
-            const optionSettings = document.createElement('option');
-            optionSettings.value = board.id;
-            optionSettings.textContent = board.name;
-            optionSettings.selected = board.id === state.activeBoardId;
-            settingsBoardSelect.appendChild(optionSettings);
-        });
-    }
-
-    function renderTeamSelect() {
-        settingsTeamSelect.innerHTML = '';
-
-        if (state.teams.length === 0) {
-            const option = document.createElement('option');
-            option.text = "No teams created";
-            settingsTeamSelect.appendChild(option);
-            return;
+                const optionSettings = document.createElement('option');
+                optionSettings.value = board.id;
+                optionSettings.textContent = board.name;
+                optionSettings.selected = board.id === state.activeBoardId;
+                settingsBoardSelect.appendChild(optionSettings);
+            });
         }
 
-        state.teams.forEach(team => {
-            const option = document.createElement('option');
-            option.value = team.id;
-            option.textContent = team.name;
-            option.selected = team.id === state.activeTeamId;
-            settingsTeamSelect.appendChild(option);
+        function renderTeamSelect() {
+            settingsTeamSelect.innerHTML = '';
+
+            if (state.teams.length === 0) {
+                const option = document.createElement('option');
+                option.text = "No teams created";
+                settingsTeamSelect.appendChild(option);
+                return;
+            }
+
+            state.teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team.id;
+                option.textContent = team.name;
+                option.selected = team.id === state.activeTeamId;
+                settingsTeamSelect.appendChild(option);
+            });
+        }
+
+        function renderTags() {
+            tagsContainer.innerHTML = '';
+            const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
+            if (!activeBoard) return;
+
+        // Check if we're in sub-tag mode - show indicator
+        if (state.addingToParentTagId) {
+            const parentTag = state.recordedTags.find(t => t.id === state.addingToParentTagId);
+            if (parentTag) {
+                const indicator = document.createElement('div');
+                indicator.className = 'subtag-mode-indicator';
+                indicator.style.cssText = 'background: #3498db; color: white; padding: 8px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;';
+                indicator.innerHTML = `
+                    <span>Adding details to: <strong>${parentTag.name}</strong> (${formatTime(parentTag.timestamp)})</span>
+                    <button id="exit-subtag-mode" style="background: white; color: #3498db; padding: 2px 8px; font-size: 11px; width: auto;">Done</button>
+                `;
+                tagsContainer.appendChild(indicator);
+                
+                // Add event listener after adding to DOM
+                setTimeout(() => {
+                    const exitBtn = document.getElementById('exit-subtag-mode');
+                    if (exitBtn) {
+                        exitBtn.onclick = () => exitSubTagMode();
+                    }
+                }, 0);
+            }
+        }
+
+        // Render included tags from other boards (if configured)
+        if (activeBoard.includeTags && activeBoard.includeTags.from && activeBoard.includeTags.from.length > 0) {
+            const position = activeBoard.includeTags.position || 'top';
+            
+            if (position === 'top') {
+                renderIncludedTags(activeBoard.includeTags.from);
+            }
+        }
+
+        // Render this board's own tags
+            activeBoard.tags.forEach(tag => {
+            renderTagButton(tag, activeBoard.id);
         });
+
+        // Render included tags at bottom if configured
+        if (activeBoard.includeTags && activeBoard.includeTags.from && activeBoard.includeTags.from.length > 0) {
+            const position = activeBoard.includeTags.position || 'top';
+            
+            if (position === 'bottom') {
+                renderIncludedTags(activeBoard.includeTags.from);
+            }
+        }
     }
 
-    function renderTags() {
-        tagsContainer.innerHTML = '';
-        const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
-        if (!activeBoard) return;
+    function renderIncludedTags(boardIds) {
+        // Create a section header for included tags
+        const header = document.createElement('div');
+        header.style.cssText = 'grid-column: 1/-1; font-size: 10px; color: #7f8c8d; margin: 5px 0 2px 0; text-transform: uppercase;';
+        header.textContent = 'From Other Boards';
+        tagsContainer.appendChild(header);
 
-        activeBoard.tags.forEach(tag => {
-            const btn = document.createElement('button');
-            btn.className = 'tag-btn';
-
-            // Check if this is an active duration tag
-            const isActiveDuration = tag.type === 'duration' && state.activeDurationTags[tag.name];
-
-            if (isActiveDuration) {
-                btn.style.backgroundColor = DURATION_ACTIVE_COLOR;
-                btn.style.animation = 'pulse 1s infinite';
-                btn.classList.add('duration-active');
-            } else {
-                btn.style.backgroundColor = tag.color;
+        boardIds.forEach(boardId => {
+            const board = state.boards.find(b => b.id === boardId);
+            if (board && board.tags) {
+                board.tags.forEach(tag => {
+                    renderTagButton(tag, boardId, true);
+                });
             }
-
-            btn.textContent = tag.name;
-
-            if (tag.hotkey) {
-                const hint = document.createElement('span');
-                hint.className = 'hotkey-hint';
-                hint.textContent = tag.hotkey;
-                btn.appendChild(hint);
-            }
-
-            btn.onclick = () => triggerTag(tag);
-            tagsContainer.appendChild(btn);
         });
+
+        // Add separator after included tags
+        const separator = document.createElement('div');
+        separator.style.cssText = 'grid-column: 1/-1; height: 1px; background: #ddd; margin: 8px 0;';
+        tagsContainer.appendChild(separator);
+    }
+
+    function renderTagButton(tag, sourceBoardId, isIncluded = false) {
+                const btn = document.createElement('button');
+                btn.className = 'tag-btn';
+
+        // Check if this is an active duration tag
+        const isActiveDuration = tag.type === 'duration' && state.activeDurationTags[tag.name];
+
+        if (isActiveDuration) {
+            btn.style.backgroundColor = DURATION_ACTIVE_COLOR;
+            btn.style.animation = 'pulse 1s infinite';
+            btn.classList.add('duration-active');
+        } else {
+                btn.style.backgroundColor = tag.color;
+        }
+
+        // Dim included tags slightly
+        if (isIncluded) {
+            btn.style.opacity = '0.85';
+        }
+
+                btn.textContent = tag.name;
+
+        // Show indicator if tag has a sub-board
+        if (tag.subTagBoard) {
+            const subIndicator = document.createElement('span');
+            subIndicator.textContent = '▸';
+            subIndicator.style.cssText = 'position: absolute; bottom: 2px; right: 4px; font-size: 10px; opacity: 0.7;';
+            btn.style.position = 'relative';
+            btn.appendChild(subIndicator);
+        }
+
+                if (tag.hotkey) {
+                    const hint = document.createElement('span');
+                    hint.className = 'hotkey-hint';
+                    hint.textContent = tag.hotkey;
+                    btn.appendChild(hint);
+                }
+
+        // Click handler - opens sub-board if available
+        btn.onclick = () => {
+            triggerTag(tag);
+            // If tag has a sub-board, open it after recording
+            if (tag.subTagBoard) {
+                setTimeout(() => openSubBoard(tag.subTagBoard), 50);
+            }
+        };
+
+                tagsContainer.appendChild(btn);
     }
 
     const sortRecordedTagsBtn = document.getElementById('sortRecordedTagsBtn');
@@ -737,17 +861,40 @@ document.addEventListener('DOMContentLoaded', () => {
             sortRecordedTagsBtn.textContent = state.sortOrder === 'entered' ? 'Sort: Newest First' : 'Sort: Chronological';
             saveGlobalState();
             renderRecordedTags();
-        });
-    }
-
-    function renderRecordedTags() {
-        recordedTagsList.innerHTML = '';
-        if (state.recordedTags.length === 0) {
-            recordedTagsList.innerHTML = '<li class="empty-state">No tags recorded yet.</li>';
-            return;
+            });
         }
 
+        function renderRecordedTags() {
+            recordedTagsList.innerHTML = '';
+            if (state.recordedTags.length === 0) {
+                recordedTagsList.innerHTML = '<li class="empty-state">No tags recorded yet.</li>';
+                return;
+            }
+
+        // Filter tags based on current board's showRecordedFrom setting
+        const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
         let tagsToShow = [...state.recordedTags];
+
+        if (activeBoard && activeBoard.showRecordedFrom && activeBoard.showRecordedFrom !== '*') {
+            // Filter to only show tags from specified boards
+            const allowedBoardIds = Array.isArray(activeBoard.showRecordedFrom) 
+                ? activeBoard.showRecordedFrom 
+                : [activeBoard.showRecordedFrom];
+            
+            // Include current board
+            if (!allowedBoardIds.includes(activeBoard.id)) {
+                allowedBoardIds.push(activeBoard.id);
+            }
+
+            tagsToShow = tagsToShow.filter(tag => {
+                // Check if this tag came from an allowed board
+                const tagDef = findTagDefinitionWithBoard(tag.name);
+                if (tagDef) {
+                    return allowedBoardIds.includes(tagDef.boardId);
+                }
+                return true; // Show tags without a board match (like player tags)
+            });
+        }
 
         if (state.sortOrder === 'entered') {
             // Show newest first (reverse chronological order of entry)
@@ -763,143 +910,219 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tagsToShow.forEach(tag => {
-            const li = document.createElement('li');
-            li.className = 'tag-item';
-            li.style.cursor = 'pointer';
+            renderRecordedTagItem(tag);
+            
+            // Render child tags if they exist
+            if (tag.childTags && tag.childTags.length > 0) {
+                tag.childTags.forEach(childTag => {
+                    renderRecordedTagItem(childTag, true, tag.id);
+                });
+            }
+        });
+    }
 
-            const timeSpan = document.createElement('span');
-            timeSpan.className = 'tag-time';
-            let timeText = formatTime(tag.timestamp);
-            if (tag.type === 'duration' && tag.endTime) {
-                timeText += ` - ${formatTime(tag.endTime)}`;
-            } else if (tag.type === 'duration' && !tag.endTime) {
-                timeText += ' (active)';
-            }
-            timeSpan.textContent = timeText;
+    function findTagDefinitionWithBoard(tagName) {
+        // Find the tag definition and which board it belongs to
+        for (const board of state.boards) {
+            const tag = board.tags.find(t => t.name === tagName);
+            if (tag) return { tag, boardId: board.id };
+        }
+        return null;
+    }
 
-            const infoSpan = document.createElement('span');
-            let infoText = `${tag.name}`;
-            if (tag.player) {
-                infoText += ` (${tag.player.number} ${tag.player.name})`;
-            }
-            if (tag.description) {
-                infoText += ` - ${tag.description}`;
-            }
-            if (tag.note) {
-                infoText += ` [${tag.note}]`;
-            }
-            infoSpan.textContent = infoText;
-            infoSpan.style.flexGrow = '1';
-            infoSpan.style.marginLeft = '10px';
+    function renderRecordedTagItem(tag, isChild = false, parentId = null) {
+                const li = document.createElement('li');
+                li.className = 'tag-item';
+        li.style.cursor = 'pointer';
+        
+        // Style child tags differently
+        if (isChild) {
+            li.style.marginLeft = '20px';
+            li.style.borderLeft = '3px solid #3498db';
+            li.style.fontSize = '12px';
+            li.style.opacity = '0.9';
+        }
 
-            // Click to seek - on the time and info spans
-            const seekHandler = (e) => {
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'tag-time';
+        let timeText = formatTime(tag.timestamp);
+        if (tag.type === 'duration' && tag.endTime) {
+            timeText += ` - ${formatTime(tag.endTime)}`;
+        } else if (tag.type === 'duration' && !tag.endTime) {
+            timeText += ' (active)';
+        }
+        timeSpan.textContent = timeText;
+
+                const infoSpan = document.createElement('span');
+                let infoText = `${tag.name}`;
+                if (tag.player) {
+                    infoText += ` (${tag.player.number} ${tag.player.name})`;
+                }
+                if (tag.description) {
+                    infoText += ` - ${tag.description}`;
+                }
+        if (tag.note) {
+            infoText += ` [${tag.note}]`;
+        }
+        // Show child count for parent tags
+        if (tag.childTags && tag.childTags.length > 0) {
+            infoText += ` (${tag.childTags.length} details)`;
+                }
+                infoSpan.textContent = infoText;
+                infoSpan.style.flexGrow = '1';
+                infoSpan.style.marginLeft = '10px';
+
+        // Click to seek - on the time and info spans
+        const seekHandler = (e) => {
+            e.stopPropagation();
+            seekToTimestamp(tag.timestamp);
+        };
+        timeSpan.onclick = seekHandler;
+        infoSpan.onclick = seekHandler;
+        timeSpan.title = 'Click to seek to this timestamp';
+        infoSpan.title = 'Click to seek to this timestamp';
+
+        // Add Details button for duration tags (only on parent tags)
+        if (!isChild && tag.type === 'duration') {
+            const detailsBtn = document.createElement('button');
+            detailsBtn.textContent = '+';
+            detailsBtn.style.backgroundColor = '#3498db';
+            detailsBtn.style.padding = '2px 6px';
+            detailsBtn.style.fontSize = '10px';
+            detailsBtn.style.width = 'auto';
+            detailsBtn.style.marginRight = '5px';
+            detailsBtn.title = 'Add details to this tag';
+            detailsBtn.onclick = (e) => {
                 e.stopPropagation();
-                seekToTimestamp(tag.timestamp);
+                addDetailsToTag(tag);
             };
-            timeSpan.onclick = seekHandler;
-            infoSpan.onclick = seekHandler;
-            timeSpan.title = 'Click to seek to this timestamp';
-            infoSpan.title = 'Click to seek to this timestamp';
+            li.appendChild(detailsBtn);
+        }
 
-            // Note button - Pencil Icon
-            const noteBtn = document.createElement('button');
-            noteBtn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>`;
-            noteBtn.style.backgroundColor = tag.note ? '#3498db' : 'transparent';
-            noteBtn.style.color = tag.note ? 'white' : '#7f8c8d';
-            noteBtn.style.border = tag.note ? 'none' : '1px solid #ddd';
-            noteBtn.style.padding = '4px';
-            noteBtn.style.display = 'flex';
-            noteBtn.style.alignItems = 'center';
-            noteBtn.style.justifyContent = 'center';
-            noteBtn.style.width = '24px';
-            noteBtn.style.height = '24px';
-            noteBtn.style.borderRadius = '4px';
-            noteBtn.style.marginRight = '5px';
-            noteBtn.title = 'Add/Edit Note';
-            noteBtn.onclick = (e) => {
-                e.stopPropagation();
+        // Note button - Pencil Icon
+        const noteBtn = document.createElement('button');
+        noteBtn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>`;
+        noteBtn.style.backgroundColor = tag.note ? '#3498db' : 'transparent';
+        noteBtn.style.color = tag.note ? 'white' : '#7f8c8d';
+        noteBtn.style.border = tag.note ? 'none' : '1px solid #ddd';
+        noteBtn.style.padding = '4px';
+        noteBtn.style.display = 'flex';
+        noteBtn.style.alignItems = 'center';
+        noteBtn.style.justifyContent = 'center';
+        noteBtn.style.width = '24px';
+        noteBtn.style.height = '24px';
+        noteBtn.style.borderRadius = '4px';
+        noteBtn.style.marginRight = '5px';
+        noteBtn.title = 'Add/Edit Note';
+        noteBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (isChild && parentId) {
+                // For child tags, find parent and the child
+                const parentTag = state.recordedTags.find(t => t.id === parentId);
+                if (parentTag) {
+                    const childIndex = parentTag.childTags.findIndex(c => c.id === tag.id);
+                    openNoteModalForChild(parentTag, childIndex);
+                }
+            } else {
                 openNoteModal(tag);
-            };
+            }
+        };
 
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'x';
-            deleteBtn.style.backgroundColor = '#e74c3c';
-            deleteBtn.style.padding = '2px 6px';
-            deleteBtn.style.fontSize = '10px';
-            deleteBtn.style.width = 'auto';
-            deleteBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (confirm("Delete this tag?")) {
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'x';
+                deleteBtn.style.backgroundColor = '#e74c3c';
+                deleteBtn.style.padding = '2px 6px';
+                deleteBtn.style.fontSize = '10px';
+                deleteBtn.style.width = 'auto';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+                    if (confirm("Delete this tag?")) {
+                if (isChild && parentId) {
+                    // Remove from parent's childTags
+                    const parentTag = state.recordedTags.find(t => t.id === parentId);
+                    if (parentTag && parentTag.childTags) {
+                        parentTag.childTags = parentTag.childTags.filter(c => c.id !== tag.id);
+                    }
+                } else {
                     // If it's an active duration tag, remove from tracking
                     if (tag.type === 'duration' && !tag.endTime) {
                         delete state.activeDurationTags[tag.name];
                     }
-                    state.recordedTags = state.recordedTags.filter(t => t.id !== tag.id);
-                    saveSessionState();
-                    renderRecordedTags();
-                    renderTags(); // Update tag buttons in case duration state changed
+                        state.recordedTags = state.recordedTags.filter(t => t.id !== tag.id);
                 }
-            };
+                        saveSessionState();
+                        renderRecordedTags();
+                renderTags();
+                    }
+                };
 
-            li.appendChild(timeSpan);
-            li.appendChild(infoSpan);
-            li.appendChild(noteBtn);
-            li.appendChild(deleteBtn);
-            recordedTagsList.appendChild(li);
-        });
+        li.insertBefore(timeSpan, li.firstChild);
+        li.insertBefore(infoSpan, noteBtn);
+        li.appendChild(noteBtn);
+                li.appendChild(deleteBtn);
+                recordedTagsList.appendChild(li);
     }
 
-    function renderRoster() {
-        rosterList.innerHTML = '';
-        const activeTeam = state.teams.find(t => t.id === state.activeTeamId);
-        if (!activeTeam) return;
+    function openNoteModalForChild(parentTag, childIndex) {
+        if (childIndex >= 0 && parentTag.childTags[childIndex]) {
+            state.currentEditingTagIndex = state.recordedTags.indexOf(parentTag);
+            state.currentEditingChildIndex = childIndex;
+            noteInput.value = parentTag.childTags[childIndex].note || '';
+            noteModal.style.display = 'flex';
+            noteInput.focus();
+        }
+        }
 
-        activeTeam.players.forEach(player => {
-            const li = document.createElement('li');
-            li.style.display = 'flex';
-            li.style.alignItems = 'center';
-            li.style.padding = '5px';
-            li.style.borderBottom = '1px solid #eee';
+        function renderRoster() {
+            rosterList.innerHTML = '';
+            const activeTeam = state.teams.find(t => t.id === state.activeTeamId);
+            if (!activeTeam) return;
 
-            const numberSpan = document.createElement('span');
-            numberSpan.textContent = `#${player.number}`;
-            numberSpan.style.width = '30px';
-            numberSpan.style.fontWeight = 'bold';
+            activeTeam.players.forEach(player => {
+                const li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.alignItems = 'center';
+                li.style.padding = '5px';
+                li.style.borderBottom = '1px solid #eee';
 
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = player.name;
-            nameSpan.style.flexGrow = '1';
+                const numberSpan = document.createElement('span');
+                numberSpan.textContent = `#${player.number}`;
+                numberSpan.style.width = '30px';
+                numberSpan.style.fontWeight = 'bold';
 
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'x';
-            deleteBtn.style.backgroundColor = '#e74c3c';
-            deleteBtn.style.padding = '2px 6px';
-            deleteBtn.style.marginLeft = '10px';
-            deleteBtn.style.fontSize = '10px';
-            deleteBtn.style.width = 'auto';
-            deleteBtn.onclick = () => {
-                if (confirm(`Remove ${player.name} from Team?`)) {
-                    activeTeam.players = activeTeam.players.filter(p => p.id !== player.id);
-                    state.matchState.roster = state.matchState.roster.filter(id => id !== player.id);
-                    state.matchState.onField = state.matchState.onField.filter(id => id !== player.id);
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = player.name;
+                nameSpan.style.flexGrow = '1';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'x';
+                deleteBtn.style.backgroundColor = '#e74c3c';
+                deleteBtn.style.padding = '2px 6px';
+                deleteBtn.style.marginLeft = '10px';
+                deleteBtn.style.fontSize = '10px';
+                deleteBtn.style.width = 'auto';
+                deleteBtn.onclick = () => {
+                    if (confirm(`Remove ${player.name} from Team?`)) {
+                        activeTeam.players = activeTeam.players.filter(p => p.id !== player.id);
+                        state.matchState.roster = state.matchState.roster.filter(id => id !== player.id);
+                        state.matchState.onField = state.matchState.onField.filter(id => id !== player.id);
 
                     saveGlobalState();
                     saveSessionState();
-                    renderRoster();
-                }
-            };
+                        renderRoster();
+                    }
+                };
 
-            li.appendChild(numberSpan);
-            li.appendChild(nameSpan);
-            li.appendChild(deleteBtn);
-            rosterList.appendChild(li);
-        });
-    }
+                li.appendChild(numberSpan);
+                li.appendChild(nameSpan);
+                li.appendChild(deleteBtn);
+                rosterList.appendChild(li);
+            });
+        }
 
-    function renderOnField() {
-        onFieldContainer.innerHTML = '';
-        const activeTeam = state.teams.find(t => t.id === state.activeTeamId);
+        function renderOnField() {
+            onFieldContainer.innerHTML = '';
+            const activeTeam = state.teams.find(t => t.id === state.activeTeamId);
 
         // Combine team players and guests
         let allPlayers = [];
@@ -913,38 +1136,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (allPlayers.length === 0 || state.matchState.onField.length === 0) {
             onFieldContainer.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">No players on field. Click Lineup to set Starting XI.</div>';
-            return;
-        }
+                return;
+            }
 
-        state.matchState.onField.forEach(playerId => {
+            state.matchState.onField.forEach(playerId => {
             const player = allPlayers.find(p => p.id === playerId);
             if (!player) return;
 
-            const btn = document.createElement('button');
+                const btn = document.createElement('button');
             btn.className = 'player-btn';
             btn.style.backgroundColor = player.isGuest ? '#8e44ad' : '#34495e';
-            btn.style.color = 'white';
-            btn.style.padding = '5px';
-            btn.style.fontSize = '11px';
-            btn.style.borderRadius = '4px';
-            btn.style.border = 'none';
-            btn.style.cursor = 'pointer';
+                btn.style.color = 'white';
+                btn.style.padding = '5px';
+                btn.style.fontSize = '11px';
+                btn.style.borderRadius = '4px';
+                btn.style.border = 'none';
+                btn.style.cursor = 'pointer';
 
             btn.innerHTML = `<strong>${player.number}</strong><br>${player.name.split(' ')[0]}`;
 
-            if (subModeToggle.checked) {
-                btn.onclick = () => openSubModal(player);
+                if (subModeToggle.checked) {
+                    btn.onclick = () => openSubModal(player);
                 btn.style.border = '2px solid #e74c3c';
                 btn.title = "Click to substitute out";
-            } else {
-                btn.onclick = () => tagPlayer(player);
-                btn.style.border = 'none';
+                } else {
+                    btn.onclick = () => tagPlayer(player);
+                    btn.style.border = 'none';
                 btn.title = "Click to tag player";
-            }
+                }
 
-            onFieldContainer.appendChild(btn);
-        });
-    }
+                onFieldContainer.appendChild(btn);
+            });
+        }
 
     function renderLineup() {
         lineupList.innerHTML = '';
@@ -1079,6 +1302,105 @@ document.addEventListener('DOMContentLoaded', () => {
             ).join('');
             boardTagsContainer.innerHTML = tagsHtml;
         }
+    }
+
+    function renderBoardComposition() {
+        const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
+        if (!activeBoard) return;
+
+        // Display include tags from
+        if (includeFromText) {
+            if (activeBoard.includeTags && activeBoard.includeTags.from && activeBoard.includeTags.from.length > 0) {
+                const boardNames = activeBoard.includeTags.from
+                    .map(id => state.boards.find(b => b.id === id)?.name || id)
+                    .join(', ');
+                includeFromText.textContent = boardNames + ` (${activeBoard.includeTags.position || 'top'})`;
+            } else {
+                includeFromText.textContent = 'None';
+            }
+        }
+
+        // Display show recorded from
+        if (showRecordedText) {
+            if (!activeBoard.showRecordedFrom || activeBoard.showRecordedFrom === '*') {
+                showRecordedText.textContent = 'All boards';
+            } else if (Array.isArray(activeBoard.showRecordedFrom)) {
+                const boardNames = activeBoard.showRecordedFrom
+                    .map(id => state.boards.find(b => b.id === id)?.name || id)
+                    .join(', ');
+                showRecordedText.textContent = boardNames || 'None selected';
+            } else {
+                showRecordedText.textContent = activeBoard.showRecordedFrom;
+            }
+        }
+    }
+
+    function renderCompositionModal() {
+        const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
+        if (!activeBoard) return;
+
+        // Ensure board has composition properties
+        if (!activeBoard.includeTags) {
+            activeBoard.includeTags = { from: [], position: 'top' };
+        }
+        if (!activeBoard.showRecordedFrom) {
+            activeBoard.showRecordedFrom = '*';
+        }
+
+        // Render include boards checkboxes
+        includeBoardsCheckboxes.innerHTML = '';
+        state.boards.forEach(board => {
+            if (board.id === activeBoard.id) return; // Skip current board
+            
+            const label = document.createElement('label');
+            label.style.display = 'flex';
+            label.style.alignItems = 'center';
+            label.style.padding = '4px';
+            label.style.cursor = 'pointer';
+            label.style.fontSize = '12px';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = board.id;
+            checkbox.checked = activeBoard.includeTags.from.includes(board.id);
+            checkbox.style.marginRight = '8px';
+
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(board.name));
+            includeBoardsCheckboxes.appendChild(label);
+        });
+
+        // Set position select
+        includePositionSelect.value = activeBoard.includeTags.position || 'top';
+
+        // Set show recorded radio
+        const showAll = !activeBoard.showRecordedFrom || activeBoard.showRecordedFrom === '*';
+        document.querySelectorAll('input[name="show-recorded"]').forEach(radio => {
+            radio.checked = (radio.value === 'all' && showAll) || 
+                           (radio.value === 'selected' && !showAll);
+        });
+
+        // Render show recorded boards checkboxes
+        showRecordedCheckboxes.innerHTML = '';
+        state.boards.forEach(board => {
+            const label = document.createElement('label');
+            label.style.display = 'flex';
+            label.style.alignItems = 'center';
+            label.style.padding = '4px';
+            label.style.cursor = 'pointer';
+            label.style.fontSize = '12px';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = board.id;
+            checkbox.checked = Array.isArray(activeBoard.showRecordedFrom) && 
+                              activeBoard.showRecordedFrom.includes(board.id);
+            checkbox.style.marginRight = '8px';
+
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(board.name));
+            showRecordedCheckboxes.appendChild(label);
+        });
     }
 
     function renderBoardTagsCheckboxes(currentTags = []) {
@@ -1280,6 +1602,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 chrome.tabs.sendMessage(tabs[0].id, { action: "getTimestamp" }, (response) => {
                     const timestamp = (response && response.timestamp) ? response.timestamp : 0;
 
+                    // Check if we're in sub-tag mode (adding details to a parent tag)
+                    if (state.addingToParentTagId) {
+                        const parentTag = state.recordedTags.find(t => t.id === state.addingToParentTagId);
+                        if (parentTag) {
+                            // Initialize childTags array if needed
+                            if (!parentTag.childTags) {
+                                parentTag.childTags = [];
+                            }
+
+                            // Create child tag
+                            const childTag = {
+                                id: Date.now().toString(),
+                                name: tag.name,
+                                type: tag.type,
+                                color: tag.color,
+                                timestamp: timestamp
+                            };
+
+                            if (tag.description) {
+                                childTag.description = tag.description;
+                            }
+
+                            parentTag.childTags.push(childTag);
+                            
+                            saveSessionState();
+                            renderRecordedTags();
+                            renderTags();
+                            return;
+                        }
+                    }
+
+                    // Normal tag recording (not in sub-tag mode)
                     // Handle duration tags - toggle behavior
                     if (tag.type === 'duration') {
                         const activeTagId = state.activeDurationTags[tag.name];
@@ -1302,7 +1656,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 hotkey: tag.hotkey,
                                 timestamp: timestamp,
                                 endTime: null,
-                                duration: null
+                                duration: null,
+                                childTags: [] // Initialize child tags array
                             };
                             state.recordedTags.push(newTag);
                             state.activeDurationTags[tag.name] = newTag.id;
@@ -1336,34 +1691,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function tagPlayer(player) {
+        function tagPlayer(player) {
         const now = Date.now();
 
-        // Find the last recorded tag
-        if (state.recordedTags.length > 0) {
-            const lastTag = state.recordedTags[state.recordedTags.length - 1];
+            // Find the last recorded tag
+            if (state.recordedTags.length > 0) {
+                const lastTag = state.recordedTags[state.recordedTags.length - 1];
 
             // Check if within 10 seconds (using real time, not video time)
             const timeSinceLastTag = state.lastTagRealTime ? (now - state.lastTagRealTime) / 1000 : Infinity;
 
             // If last tag is an event, recent (< 10 seconds), and has no player
             if (lastTag.type === 'event' && !lastTag.player && timeSinceLastTag < 10) {
-                lastTag.player = {
-                    id: player.id,
-                    name: player.name,
-                    number: player.number
-                };
+                    lastTag.player = {
+                        id: player.id,
+                        name: player.name,
+                        number: player.number
+                    };
 
-                saveSessionState();
-                renderRecordedTags();
-                return;
+                    saveSessionState();
+                    renderRecordedTags();
+                    return;
+                }
             }
-        }
 
-        // Fallback: Record a standalone player tag
-        triggerTag({
-            name: `${player.number} ${player.name}`,
-            type: "player",
+            // Fallback: Record a standalone player tag
+            triggerTag({
+                name: `${player.number} ${player.name}`,
+                type: "player",
             color: player.isGuest ? "#8e44ad" : "#34495e"
         });
     }
@@ -1379,15 +1734,90 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Sub-Tag / Detail Mode Functions ---
+    function openSubBoard(boardId, parentTagId = null) {
+        const board = state.boards.find(b => b.id === boardId);
+        if (!board) {
+            console.log("Sub-board not found:", boardId);
+            return;
+        }
+
+        // If parentTagId provided, enter sub-tag mode
+        if (parentTagId) {
+            state.addingToParentTagId = parentTagId;
+            // Store current video position as resume point
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0]) {
+                    chrome.tabs.sendMessage(tabs[0].id, { action: "getTimestamp" }, (response) => {
+                        state.resumeTimestamp = (response && response.timestamp) ? response.timestamp : null;
+                    });
+                }
+            });
+        }
+
+        // Switch to the sub-board
+        state.activeBoardId = boardId;
+        saveGlobalState();
+        render();
+    }
+
+    function exitSubTagMode() {
+        state.addingToParentTagId = null;
+        
+        // Optionally seek back to resume point
+        if (state.resumeTimestamp !== null) {
+            seekToTimestamp(state.resumeTimestamp);
+            state.resumeTimestamp = null;
+        }
+        
+        render();
+    }
+
+    function addDetailsToTag(parentTag) {
+        // Enter sub-tag mode for an existing tag
+        state.addingToParentTagId = parentTag.id;
+        
+        // Seek to the tag's timestamp
+        seekToTimestamp(parentTag.timestamp);
+        
+        // Store current position for resume
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0]) {
+                chrome.tabs.sendMessage(tabs[0].id, { action: "getTimestamp" }, (response) => {
+                    state.resumeTimestamp = (response && response.timestamp) ? response.timestamp : null;
+                });
+            }
+        });
+
+        // If the tag has a subTagBoard defined, switch to it
+        // Otherwise stay on current board
+        const tagDef = findTagDefinition(parentTag.name);
+        if (tagDef && tagDef.subTagBoard) {
+            state.activeBoardId = tagDef.subTagBoard;
+            saveGlobalState();
+        }
+        
+        render();
+    }
+
+    function findTagDefinition(tagName) {
+        // Find the tag definition across all boards
+        for (const board of state.boards) {
+            const tag = board.tags.find(t => t.name === tagName);
+            if (tag) return tag;
+        }
+        return null;
+    }
+
     // --- Substitution Modal ---
-    let pendingSubOutId = null;
+        let pendingSubOutId = null;
 
-    function openSubModal(playerOut) {
-        pendingSubOutId = playerOut.id;
-        subOutName.textContent = playerOut.name;
-        subInSelect.innerHTML = '';
+        function openSubModal(playerOut) {
+            pendingSubOutId = playerOut.id;
+            subOutName.textContent = playerOut.name;
+            subInSelect.innerHTML = '';
 
-        const activeTeam = state.teams.find(t => t.id === state.activeTeamId);
+            const activeTeam = state.teams.find(t => t.id === state.activeTeamId);
 
         // Combine team players and guests
         let allPlayers = [];
@@ -1404,23 +1834,23 @@ document.addEventListener('DOMContentLoaded', () => {
             state.matchState.roster.includes(p.id)
         );
 
-        if (benchPlayers.length === 0) {
-            const option = document.createElement('option');
-            option.text = "No subs available";
-            subInSelect.appendChild(option);
-            confirmSubBtn.disabled = true;
-        } else {
-            benchPlayers.forEach(p => {
+            if (benchPlayers.length === 0) {
                 const option = document.createElement('option');
-                option.value = p.id;
-                option.textContent = `#${p.number} ${p.name}${p.isGuest ? ' (Guest)' : ''}`;
+                option.text = "No subs available";
                 subInSelect.appendChild(option);
-            });
-            confirmSubBtn.disabled = false;
-        }
+                confirmSubBtn.disabled = true;
+            } else {
+                benchPlayers.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                option.textContent = `#${p.number} ${p.name}${p.isGuest ? ' (Guest)' : ''}`;
+                    subInSelect.appendChild(option);
+                });
+                confirmSubBtn.disabled = false;
+            }
 
-        subModal.style.display = 'flex';
-    }
+            subModal.style.display = 'flex';
+        }
 
     // --- Event Listeners Setup ---
     function setupEventListeners() {
@@ -1439,18 +1869,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.currentEditingTagIndex !== null && state.currentEditingTagIndex >= 0) {
                 const tag = state.recordedTags[state.currentEditingTagIndex];
                 if (tag) {
-                    tag.note = noteInput.value.trim();
+                    // Check if we're editing a child tag
+                    if (state.currentEditingChildIndex !== null && state.currentEditingChildIndex >= 0) {
+                        if (tag.childTags && tag.childTags[state.currentEditingChildIndex]) {
+                            tag.childTags[state.currentEditingChildIndex].note = noteInput.value.trim();
+                        }
+                    } else {
+                        tag.note = noteInput.value.trim();
+                    }
                     saveSessionState();
                     renderRecordedTags();
                 }
             }
             noteModal.style.display = 'none';
             state.currentEditingTagIndex = null;
+            state.currentEditingChildIndex = null;
         });
 
         cancelNoteBtn.addEventListener('click', () => {
             noteModal.style.display = 'none';
             state.currentEditingTagIndex = null;
+            state.currentEditingChildIndex = null;
         });
 
         // Sub mode toggle
@@ -1574,6 +2013,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 render();
             }
         });
+
+        // Board Composition Modal
+        if (editCompositionBtn) {
+            editCompositionBtn.addEventListener('click', () => {
+                renderCompositionModal();
+                compositionModal.style.display = 'flex';
+            });
+        }
+
+        if (saveCompositionBtn) {
+            saveCompositionBtn.addEventListener('click', () => {
+                const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
+                if (!activeBoard) return;
+
+                // Save include tags from
+                const selectedIncludeBoards = Array.from(
+                    includeBoardsCheckboxes.querySelectorAll('input[type="checkbox"]:checked')
+                ).map(cb => cb.value);
+
+                activeBoard.includeTags = {
+                    from: selectedIncludeBoards,
+                    position: includePositionSelect.value
+                };
+
+                // Save show recorded from
+                const showAllRadio = document.querySelector('input[name="show-recorded"][value="all"]');
+                if (showAllRadio && showAllRadio.checked) {
+                    activeBoard.showRecordedFrom = '*';
+                } else {
+                    const selectedShowBoards = Array.from(
+                        showRecordedCheckboxes.querySelectorAll('input[type="checkbox"]:checked')
+                    ).map(cb => cb.value);
+                    activeBoard.showRecordedFrom = selectedShowBoards.length > 0 ? selectedShowBoards : '*';
+                }
+
+                saveGlobalState();
+                render();
+                compositionModal.style.display = 'none';
+            });
+        }
+
+        if (cancelCompositionBtn) {
+            cancelCompositionBtn.addEventListener('click', () => {
+                compositionModal.style.display = 'none';
+            });
+        }
 
         settingsTeamSelect.addEventListener('change', (e) => {
             state.activeTeamId = e.target.value;
@@ -1732,6 +2217,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Set default color based on default type (event)
             tagTypeInput.value = 'event';
             tagColorInput.value = TAG_TYPE_COLORS.event;
+            
+            // Populate subboard select
+            populateSubboardSelect('');
+            
             tagModal.style.display = 'flex';
         });
 
@@ -1748,6 +2237,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const type = tagTypeInput.value;
             const hotkey = tagHotkeyInput.value.toLowerCase();
             const color = tagColorInput.value;
+            const subTagBoard = tagSubboardInput ? tagSubboardInput.value : null;
 
             if (name) {
                 const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
@@ -1757,7 +2247,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         name: name,
                         type: type,
                         hotkey: hotkey,
-                        color: color
+                        color: color,
+                        subTagBoard: subTagBoard || null
                     });
                     saveGlobalState();
                     render();
@@ -1839,6 +2330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let hotkeyBuffer = '';
         let hotkeyTimeout = null;
         const HOTKEY_DELAY = 400;
+        let pendingTagTrigger = null;
 
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
@@ -1864,11 +2356,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const player = allPlayers.find(p => parseInt(p.number) === numberVal);
 
-                    if (player && state.matchState.onField.includes(player.id)) {
-                        if (subModeToggle.checked) {
-                            openSubModal(player);
-                        } else {
-                            tagPlayer(player);
+                        if (player && state.matchState.onField.includes(player.id)) {
+                            if (subModeToggle.checked) {
+                                openSubModal(player);
+                            } else {
+                                tagPlayer(player);
                         }
                     }
                 }, HOTKEY_DELAY);
@@ -1878,10 +2370,68 @@ document.addEventListener('DOMContentLoaded', () => {
             const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
             if (!activeBoard) return;
 
-            const tag = activeBoard.tags.find(t => t.hotkey === e.key);
+            // Find tag with this hotkey (check current board and included boards)
+            let tag = activeBoard.tags.find(t => t.hotkey === e.key);
+            let tagSourceBoard = activeBoard;
+
+            // Also check included boards
+            if (!tag && activeBoard.includeTags && activeBoard.includeTags.from) {
+                for (const boardId of activeBoard.includeTags.from) {
+                    const includedBoard = state.boards.find(b => b.id === boardId);
+                    if (includedBoard) {
+                        const foundTag = includedBoard.tags.find(t => t.hotkey === e.key);
+                        if (foundTag) {
+                            tag = foundTag;
+                            tagSourceBoard = includedBoard;
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (tag) {
                 e.preventDefault();
+                
+                const now = Date.now();
+                const lastPress = state.lastHotkeyPress[e.key];
+
+                // Check for double-tap
+                if (lastPress && (now - lastPress) < DOUBLE_TAP_MS) {
+                    // Double-tap detected! Clear single-tap timeout
+                    if (pendingTagTrigger) {
+                        clearTimeout(pendingTagTrigger);
+                        pendingTagTrigger = null;
+                    }
+                    
+                    // Trigger tag and open sub-board if available
                 triggerTag(tag);
+                    
+                    if (tag.subTagBoard) {
+                        // After triggering, enter sub-tag mode with the most recent tag
+                        setTimeout(() => {
+                            const latestTag = state.recordedTags[state.recordedTags.length - 1];
+                            if (latestTag) {
+                                openSubBoard(tag.subTagBoard, latestTag.id);
+                            }
+                        }, 50);
+                    }
+                    
+                    state.lastHotkeyPress[e.key] = 0; // Reset to prevent triple-tap issues
+                } else {
+                    // First press - set up delayed trigger
+                    state.lastHotkeyPress[e.key] = now;
+                    
+                    // If tag has a sub-board, delay the trigger slightly to detect double-tap
+                    if (tag.subTagBoard) {
+                        pendingTagTrigger = setTimeout(() => {
+                            triggerTag(tag);
+                            pendingTagTrigger = null;
+                        }, DOUBLE_TAP_MS);
+                    } else {
+                        // No sub-board, trigger immediately
+                        triggerTag(tag);
+                    }
+                }
             }
         });
     }
@@ -1893,21 +2443,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const headers = ["Timestamp", "End Time", "Name", "Type", "Duration (s)", "Hotkey", "Player", "Note"];
-        const rows = state.recordedTags.map(tag => {
-            const time = formatTime(tag.timestamp);
-            const endTime = tag.endTime ? formatTime(tag.endTime) : '';
-            const duration = tag.type === 'duration' ? (tag.duration ? tag.duration.toFixed(1) : 'Ongoing') : '';
-            const name = `"${tag.name.replace(/"/g, '""')}"`;
-
-            let playerInfo = '';
-            if (tag.player) {
-                playerInfo = `"${tag.player.number} ${tag.player.name}"`;
+        const headers = ["Timestamp", "End Time", "Name", "Type", "Duration (s)", "Hotkey", "Player", "Note", "Parent Tag"];
+        const rows = [];
+        
+        // Process each tag and its child tags
+        state.recordedTags.forEach(tag => {
+            // Add the parent tag
+            rows.push(formatTagForExport(tag, ''));
+            
+            // Add child tags if they exist
+            if (tag.childTags && tag.childTags.length > 0) {
+                tag.childTags.forEach(childTag => {
+                    rows.push(formatTagForExport(childTag, tag.name));
+                });
             }
-
-            const note = tag.note ? `"${tag.note.replace(/"/g, '""')}"` : '';
-
-            return [time, endTime, name, tag.type, duration, tag.hotkey || '', playerInfo, note].join(",");
         });
 
         const csvContent = [headers.join(","), ...rows].join("\n");
@@ -1923,7 +2472,24 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(link);
     }
 
-    // --- Helpers ---
+    function formatTagForExport(tag, parentName) {
+        const time = formatTime(tag.timestamp);
+        const endTime = tag.endTime ? formatTime(tag.endTime) : '';
+        const duration = tag.type === 'duration' ? (tag.duration ? tag.duration.toFixed(1) : 'Ongoing') : '';
+        const name = `"${tag.name.replace(/"/g, '""')}"`;
+
+        let playerInfo = '';
+        if (tag.player) {
+            playerInfo = `"${tag.player.number} ${tag.player.name}"`;
+        }
+
+        const note = tag.note ? `"${tag.note.replace(/"/g, '""')}"` : '';
+        const parent = parentName ? `"${parentName.replace(/"/g, '""')}"` : '';
+
+        return [time, endTime, name, tag.type, duration, tag.hotkey || '', playerInfo, note, parent].join(",");
+    }
+
+        // --- Helpers ---
     function openNoteModal(tag) {
         state.currentEditingTagIndex = state.recordedTags.indexOf(tag);
         noteInput.value = tag.note || '';
@@ -1931,13 +2497,13 @@ document.addEventListener('DOMContentLoaded', () => {
         noteInput.focus();
     }
 
-    function formatTime(seconds) {
+        function formatTime(seconds) {
         if (seconds === null || seconds === undefined) return '--:--';
         const totalSeconds = Math.floor(seconds);
         const mm = Math.floor(totalSeconds / 60);
         const ss = totalSeconds % 60;
-        return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
-    }
+            return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
+        }
 
     function setupSortToggle() {
         if (sortToggleBtn) {
@@ -1949,44 +2515,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function setupModeToggle() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const isPopOut = urlParams.get('mode') === 'popout';
-
-        if (isPopOut) {
-            modeToggleBtn.title = "Go Back In";
-            if (iconPopOut) iconPopOut.style.display = 'none';
-            if (iconPopIn) iconPopIn.style.display = 'block';
-        } else {
-            modeToggleBtn.title = "Pop Out";
-            if (iconPopOut) iconPopOut.style.display = 'block';
-            if (iconPopIn) iconPopIn.style.display = 'none';
+    function populateSubboardSelect(selectedValue) {
+        if (!tagSubboardInput) return;
+        
+        tagSubboardInput.innerHTML = '<option value="">None (no sub-tags)</option>';
+        
+        state.boards.forEach(board => {
+            // Don't include the current board as an option
+            if (board.id === state.activeBoardId) return;
+            
+            const option = document.createElement('option');
+            option.value = board.id;
+            option.textContent = board.name;
+            option.selected = board.id === selectedValue;
+            tagSubboardInput.appendChild(option);
+        });
         }
 
-        modeToggleBtn.addEventListener('click', () => {
-            if (isPopOut) {
-                window.close();
-            } else {
-                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                    const currentTabId = tabs.length > 0 ? tabs[0].id : null;
-                    let url = "popup.html?mode=popout";
-                    if (currentTabId) {
-                        url += `&tabId=${currentTabId}`;
-                    }
+        function setupModeToggle() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isPopOut = urlParams.get('mode') === 'popout';
 
-                    chrome.windows.create({
-                        url: url,
-                        type: "popup",
-                        width: 320,
-                        height: 600
-                    }, () => {
-                        chrome.runtime.sendMessage({ action: "closeSidePanel" });
-                    });
-                });
+            if (isPopOut) {
+                modeToggleBtn.title = "Go Back In";
+            if (iconPopOut) iconPopOut.style.display = 'none';
+            if (iconPopIn) iconPopIn.style.display = 'block';
+            } else {
+                modeToggleBtn.title = "Pop Out";
+            if (iconPopOut) iconPopOut.style.display = 'block';
+            if (iconPopIn) iconPopIn.style.display = 'none';
             }
-        });
-    }
+
+            modeToggleBtn.addEventListener('click', () => {
+                if (isPopOut) {
+                    window.close();
+                } else {
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        const currentTabId = tabs.length > 0 ? tabs[0].id : null;
+                        let url = "popup.html?mode=popout";
+                        if (currentTabId) {
+                            url += `&tabId=${currentTabId}`;
+                        }
+
+                        chrome.windows.create({
+                            url: url,
+                            type: "popup",
+                            width: 320,
+                            height: 600
+                        }, () => {
+                            chrome.runtime.sendMessage({ action: "closeSidePanel" });
+                        });
+                    });
+                }
+            });
+        }
 
     // Initialize the app
     init();
-});
+    });

@@ -343,6 +343,20 @@
         </div>
       </div>
 
+      <!-- Board Composition Settings -->
+      <div id="board-composition" style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="margin: 0; font-size: 14px;">Board Composition</h3>
+          <button id="edit-composition-btn" style="width: auto; padding: 4px 8px; font-size: 11px; background-color: #e67e22;">Edit</button>
+        </div>
+        <div id="include-tags-display" style="font-size: 11px; color: #7f8c8d; margin-bottom: 5px;">
+          <strong>Include tags from:</strong> <span id="include-from-text">None</span>
+        </div>
+        <div id="show-recorded-display" style="font-size: 11px; color: #7f8c8d;">
+          <strong>Show recorded from:</strong> <span id="show-recorded-text">All boards</span>
+        </div>
+      </div>
+
       <div style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <h3 style="margin: 0;">Event Tags</h3>
@@ -451,6 +465,13 @@
       </label>
       <label>Hotkey: <input type="text" id="tag-hotkey-input" placeholder="Press a key..." readonly></label>
       <label>Color: <input type="color" id="tag-color-input" value="#f1c40f"></label>
+      <label>Sub-Tag Board:
+        <select id="tag-subboard-input">
+          <option value="">None (no sub-tags)</option>
+          <!-- Boards will be populated dynamically -->
+        </select>
+      </label>
+      <p style="font-size: 10px; color: #7f8c8d; margin-top: -5px;">Double-tap hotkey or click ▸ to open this board for adding details.</p>
       <div class="modal-actions">
         <button id="save-tag-btn">Save</button>
         <button id="cancel-tag-btn" style="background-color: #95a5a6;">Cancel</button>
@@ -484,6 +505,46 @@
       <div class="modal-actions">
         <button id="save-board-btn">Create</button>
         <button id="cancel-board-btn" style="background-color: #95a5a6;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Board Composition Modal -->
+  <div id="composition-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3>Board Composition</h3>
+      
+      <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold;">Include Tags From:</label>
+      <p style="font-size: 11px; color: #7f8c8d; margin-bottom: 5px;">Show tags from these boards at the top of this board.</p>
+      <div id="include-boards-checkboxes" style="max-height: 120px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 4px; background: #f9f9f9; margin-bottom: 10px;">
+        <!-- Board checkboxes will be generated here -->
+      </div>
+      
+      <label style="display: block; margin-top: 5px; margin-bottom: 5px; font-size: 12px;">
+        Position: 
+        <select id="include-position-select" style="padding: 3px; font-size: 12px;">
+          <option value="top">Top</option>
+          <option value="bottom">Bottom</option>
+        </select>
+      </label>
+      
+      <hr style="margin: 15px 0;">
+      
+      <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold;">Show Recorded Tags From:</label>
+      <p style="font-size: 11px; color: #7f8c8d; margin-bottom: 5px;">Filter the recorded tags list when this board is active.</p>
+      <label style="display: flex; align-items: center; margin-bottom: 5px; font-size: 12px;">
+        <input type="radio" name="show-recorded" value="all" style="margin-right: 8px;" checked> All boards
+      </label>
+      <label style="display: flex; align-items: center; margin-bottom: 5px; font-size: 12px;">
+        <input type="radio" name="show-recorded" value="selected" style="margin-right: 8px;"> Selected boards only:
+      </label>
+      <div id="show-recorded-checkboxes" style="max-height: 100px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 4px; background: #f9f9f9; margin-left: 20px;">
+        <!-- Board checkboxes will be generated here -->
+      </div>
+      
+      <div class="modal-actions">
+        <button id="save-composition-btn">Save</button>
+        <button id="cancel-composition-btn" style="background-color: #95a5a6;">Cancel</button>
       </div>
     </div>
   </div>
