@@ -93,6 +93,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveNoteBtn = document.getElementById('save-note-btn');
     const cancelNoteBtn = document.getElementById('cancel-note-btn');
 
+    // Manage tags modal elements
+    const manageTagsBtn = document.getElementById('manage-tags-btn');
+    const manageTagsModal = document.getElementById('manage-tags-modal');
+    const manageTagsList = document.getElementById('manage-tags-list');
+    const clearAllTagsBtn = document.getElementById('clear-all-tags-btn');
+    const selectAllTagsBtn = document.getElementById('select-all-tags-btn');
+    const selectNoneTagsBtn = document.getElementById('select-none-tags-btn');
+    const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+    const cancelManageBtn = document.getElementById('cancel-manage-btn');
+    const selectedCountSpan = document.getElementById('selected-count');
+
     // Board composition elements
     const editCompositionBtn = document.getElementById('edit-composition-btn');
     const includeFromText = document.getElementById('include-from-text');
@@ -2408,6 +2419,40 @@ document.addEventListener('DOMContentLoaded', () => {
             state.currentEditingChildIndex = null;
         });
 
+        // Manage Tags Modal
+        if (manageTagsBtn) {
+            manageTagsBtn.addEventListener('click', openManageTagsModal);
+        }
+
+        if (clearAllTagsBtn) {
+            clearAllTagsBtn.addEventListener('click', clearAllTags);
+        }
+
+        if (selectAllTagsBtn) {
+            selectAllTagsBtn.addEventListener('click', () => selectAllManageTags(true));
+        }
+
+        if (selectNoneTagsBtn) {
+            selectNoneTagsBtn.addEventListener('click', () => selectAllManageTags(false));
+        }
+
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.addEventListener('click', deleteSelectedTags);
+        }
+
+        if (cancelManageBtn) {
+            cancelManageBtn.addEventListener('click', () => {
+                if (manageTagsModal) manageTagsModal.style.display = 'none';
+            });
+        }
+
+        // Filter by type buttons
+        document.querySelectorAll('.filter-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectTagsByType(btn.dataset.type);
+            });
+        });
+
         // Sub mode toggle (element exists but hidden, toggle is now in Players section)
         if (subModeToggle) {
             subModeToggle.addEventListener('change', () => {
@@ -3223,7 +3268,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Replace existing board
                     state.boards[existingIndex] = board;
                     importedCount++;
-                } else {
+                            } else {
                     // Create a copy with new ID
                     const newBoard = {
                         ...board,
@@ -3264,6 +3309,161 @@ document.addEventListener('DOMContentLoaded', () => {
         noteInput.value = tag.note || '';
         noteModal.style.display = 'flex';
         noteInput.focus();
+    }
+
+    // --- Manage Tags Functions ---
+    function openManageTagsModal() {
+        renderManageTagsList();
+        updateSelectedCount();
+        if (manageTagsModal) {
+            manageTagsModal.style.display = 'flex';
+        }
+    }
+
+    function renderManageTagsList() {
+        if (!manageTagsList) return;
+        manageTagsList.innerHTML = '';
+
+        if (state.recordedTags.length === 0) {
+            manageTagsList.innerHTML = '<div style="text-align: center; color: #7f8c8d; padding: 20px;">No recorded tags</div>';
+            return;
+        }
+
+        // Sort by timestamp for display
+        const sortedTags = [...state.recordedTags].sort((a, b) => a.timestamp - b.timestamp);
+
+        sortedTags.forEach((tag, index) => {
+            const item = document.createElement('label');
+            item.style.cssText = `
+                display: flex;
+                align-items: center;
+                padding: 8px;
+                margin-bottom: 4px;
+                background: white;
+                border-radius: 4px;
+                cursor: pointer;
+                border-left: 3px solid ${tag.color || '#95a5a6'};
+            `;
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = tag.id;
+            checkbox.className = 'manage-tag-checkbox';
+            checkbox.style.marginRight = '10px';
+            checkbox.onchange = updateSelectedCount;
+
+            const info = document.createElement('div');
+            info.style.flexGrow = '1';
+            
+            let timeText = formatTime(tag.timestamp);
+            if (tag.type === 'duration' && tag.endTime) {
+                timeText += ` - ${formatTime(tag.endTime)}`;
+            }
+
+            let details = tag.name;
+            if (tag.player) {
+                details += ` (#${tag.player.number} ${tag.player.name})`;
+            }
+            if (tag.childTags && tag.childTags.length > 0) {
+                details += ` [${tag.childTags.length} details]`;
+            }
+
+            info.innerHTML = `
+                <div style="font-weight: bold; font-size: 12px;">${timeText}</div>
+                <div style="font-size: 11px; color: #666;">${details}</div>
+                <div style="font-size: 10px; color: #999;">${tag.type}</div>
+            `;
+
+            item.appendChild(checkbox);
+            item.appendChild(info);
+            manageTagsList.appendChild(item);
+        });
+    }
+
+    function updateSelectedCount() {
+        if (!selectedCountSpan || !manageTagsList) return;
+        const checked = manageTagsList.querySelectorAll('.manage-tag-checkbox:checked').length;
+        selectedCountSpan.textContent = checked;
+    }
+
+    function selectTagsByType(type) {
+        if (!manageTagsList) return;
+        
+        state.recordedTags.forEach(tag => {
+            const checkbox = manageTagsList.querySelector(`.manage-tag-checkbox[value="${tag.id}"]`);
+            if (checkbox) {
+                checkbox.checked = tag.type === type;
+            }
+        });
+        updateSelectedCount();
+    }
+
+    function selectAllManageTags(selected) {
+        if (!manageTagsList) return;
+        const checkboxes = manageTagsList.querySelectorAll('.manage-tag-checkbox');
+        checkboxes.forEach(cb => cb.checked = selected);
+        updateSelectedCount();
+    }
+
+    function deleteSelectedTags() {
+        if (!manageTagsList) return;
+        
+        const checkedBoxes = manageTagsList.querySelectorAll('.manage-tag-checkbox:checked');
+        if (checkedBoxes.length === 0) {
+            alert('No tags selected.');
+            return;
+        }
+
+        if (!confirm(`Delete ${checkedBoxes.length} tag(s)? This cannot be undone.`)) {
+            return;
+        }
+
+        const idsToDelete = new Set(Array.from(checkedBoxes).map(cb => cb.value));
+        
+        // Remove from activeDurationTags if any are active
+        state.recordedTags.forEach(tag => {
+            if (idsToDelete.has(tag.id) && tag.type === 'duration' && !tag.endTime) {
+                delete state.activeDurationTags[tag.name];
+            }
+        });
+
+        // Delete the tags
+        state.recordedTags = state.recordedTags.filter(tag => !idsToDelete.has(tag.id));
+        
+        saveSessionState();
+        renderManageTagsList();
+        renderRecordedTags();
+        renderTags();
+        updateSelectedCount();
+    }
+
+    function clearAllTags() {
+        if (state.recordedTags.length === 0) {
+            alert('No tags to clear.');
+            return;
+        }
+
+        if (!confirm(`Delete ALL ${state.recordedTags.length} recorded tags? This cannot be undone.`)) {
+            return;
+        }
+
+        // Double confirmation for safety
+        if (!confirm('Are you REALLY sure? All tags for this game will be permanently deleted.')) {
+            return;
+        }
+
+        state.recordedTags = [];
+        state.activeDurationTags = {};
+        
+        saveSessionState();
+        renderManageTagsList();
+        renderRecordedTags();
+        renderTags();
+        updateSelectedCount();
+
+        if (manageTagsModal) {
+            manageTagsModal.style.display = 'none';
+        }
     }
 
         function formatTime(seconds) {

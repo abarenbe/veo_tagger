@@ -288,10 +288,16 @@
     <hr>
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <h3>Recorded Tags</h3>
-      <button id="sort-toggle-btn" style="width: auto; padding: 2px 8px; font-size: 11px; background-color: #95a5a6;"
-        title="Sort by Timestamp / Order Entered">
-        Sort: Entered
-      </button>
+      <div style="display: flex; gap: 4px;">
+        <button id="sort-toggle-btn" style="width: auto; padding: 2px 8px; font-size: 11px; background-color: #95a5a6;"
+          title="Sort by Timestamp / Order Entered">
+          Sort: Entered
+        </button>
+        <button id="manage-tags-btn" style="width: auto; padding: 2px 8px; font-size: 11px; background-color: #e74c3c;"
+          title="Delete tags">
+          Clear
+        </button>
+      </div>
     </div>
     <ul id="recorded-tags-list">
       <li class="empty-state">No tags recorded yet.</li>
@@ -573,6 +579,48 @@
       </ul>
       <div class="modal-actions">
         <button id="close-lineup-btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage Tags Modal -->
+  <div id="manage-tags-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+      <h3>Manage Recorded Tags</h3>
+      
+      <!-- Quick Actions -->
+      <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+        <button id="clear-all-tags-btn" style="background-color: #e74c3c; padding: 6px 12px; font-size: 12px; width: auto;">
+          Clear All
+        </button>
+        <button id="select-all-tags-btn" style="background-color: #3498db; padding: 6px 12px; font-size: 12px; width: auto;">
+          Select All
+        </button>
+        <button id="select-none-tags-btn" style="background-color: #95a5a6; padding: 6px 12px; font-size: 12px; width: auto;">
+          Select None
+        </button>
+      </div>
+
+      <!-- Filter by type -->
+      <div style="margin-bottom: 10px; font-size: 12px;">
+        <span style="color: #7f8c8d;">Select by type:</span>
+        <button class="filter-type-btn" data-type="event" style="width: auto; padding: 2px 8px; font-size: 11px; background-color: #f39c12; margin-left: 5px;">Events</button>
+        <button class="filter-type-btn" data-type="duration" style="width: auto; padding: 2px 8px; font-size: 11px; background-color: #2ecc71; margin-left: 3px;">Durations</button>
+        <button class="filter-type-btn" data-type="player" style="width: auto; padding: 2px 8px; font-size: 11px; background-color: #34495e; margin-left: 3px;">Players</button>
+      </div>
+
+      <!-- Tag list with checkboxes -->
+      <div id="manage-tags-list" style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 8px; background: #f9f9f9; max-height: 300px;">
+        <!-- Tags will be rendered here -->
+      </div>
+
+      <div style="margin-top: 10px; font-size: 11px; color: #7f8c8d;">
+        <span id="selected-count">0</span> tag(s) selected
+      </div>
+
+      <div class="modal-actions">
+        <button id="delete-selected-btn" style="background-color: #e74c3c;">Delete Selected</button>
+        <button id="cancel-manage-btn" style="background-color: #95a5a6;">Close</button>
       </div>
     </div>
   </div>
