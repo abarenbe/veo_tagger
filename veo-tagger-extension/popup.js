@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Main View Elements
     const settingsBtn = document.getElementById('settings-btn');
+    const mainWorkflowSelect = document.getElementById('main-workflow-select');
     const mainBoardSelect = document.getElementById('main-board-select');
     const tagsContainer = document.getElementById('tags-container');
     const onFieldContainer = document.getElementById('on-field-container');
@@ -112,6 +113,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmImportBtn = document.getElementById('confirm-import-btn');
     const cancelImportBtn = document.getElementById('cancel-import-btn');
 
+    // Workflow elements
+    const workflowsList = document.getElementById('workflows-list');
+    const newWorkflowBtn = document.getElementById('new-workflow-btn');
+    const workflowModal = document.getElementById('workflow-modal');
+    const workflowModalTitle = document.getElementById('workflow-modal-title');
+    const workflowNameInput = document.getElementById('workflow-name-input');
+    const workflowDescInput = document.getElementById('workflow-desc-input');
+    const workflowBoardsCheckboxes = document.getElementById('workflow-boards-checkboxes');
+    const saveWorkflowBtn = document.getElementById('save-workflow-btn');
+    const cancelWorkflowBtn = document.getElementById('cancel-workflow-btn');
+
     // --- State ---
     let state = {
         currentView: 'main', // 'main' or 'settings'
@@ -120,6 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
         boards: [],
         activeBoardId: null,
         boardTagsList: [], // Available board tags to choose from
+        workflows: [], // Workflow definitions
+        activeWorkflowId: null, // Currently active workflow
         teams: [],
         activeTeamId: null,
 
@@ -152,7 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
         lastHotkeyPress: {},
 
         // Pending import data
-        pendingImport: null
+        pendingImport: null,
+
+        // Workflow editing
+        editingWorkflowId: null
     };
 
     // Default Data
@@ -267,6 +284,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Double-tap detection constants
     const DOUBLE_TAP_MS = 300;
 
+    // Default Workflows
+    const DEFAULT_WORKFLOWS = [
+        {
+            id: 'soccer_possession',
+            name: 'Soccer Possession',
+            description: 'Game state and possession analysis',
+            boardIds: ['game_state', 'possession_details']
+        },
+        {
+            id: 'soccer_basic_workflow',
+            name: 'Soccer Basic',
+            description: 'Basic soccer tagging',
+            boardIds: ['soccer_basic']
+        },
+        {
+            id: 'all_boards',
+            name: 'All Boards',
+            description: 'Access to all boards',
+            boardIds: [] // Empty = show all boards
+        }
+    ];
+
     // Color defaults for tag types
     const TAG_TYPE_COLORS = {
         event: '#f1c40f',    // Yellow
@@ -379,11 +418,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State Management ---
     async function loadState() {
         console.log("Loading state...");
-        const result = await chrome.storage.local.get(['tagBoards', 'activeBoardId', 'boardTagsList', 'teams', 'activeTeamId', 'games']);
+        const result = await chrome.storage.local.get(['tagBoards', 'activeBoardId', 'boardTagsList', 'workflows', 'activeWorkflowId', 'teams', 'activeTeamId', 'games']);
             console.log("Loaded result:", result);
 
             // Global Settings
         state.boardTagsList = result.boardTagsList || [];
+
+        // Load workflows
+        if (result.workflows && Array.isArray(result.workflows) && result.workflows.length > 0) {
+            state.workflows = result.workflows;
+            state.activeWorkflowId = result.activeWorkflowId || state.workflows[0].id;
+        } else {
+            state.workflows = JSON.parse(JSON.stringify(DEFAULT_WORKFLOWS));
+            state.activeWorkflowId = state.workflows[0].id;
+        }
 
             if (result.tagBoards && Array.isArray(result.tagBoards) && result.tagBoards.length > 0) {
                 console.log("Found existing boards:", result.tagBoards.length);
@@ -435,11 +483,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Attempted to save empty boards! Aborting save.", state.boards);
                 return;
             }
-        console.log("Saving global state...", { boards: state.boards, teams: state.teams, boardTagsList: state.boardTagsList });
+        console.log("Saving global state...", { boards: state.boards, teams: state.teams, workflows: state.workflows });
             chrome.storage.local.set({
                 tagBoards: state.boards,
                 activeBoardId: state.activeBoardId,
             boardTagsList: state.boardTagsList,
+            workflows: state.workflows,
+            activeWorkflowId: state.activeWorkflowId,
                 teams: state.teams,
                 activeTeamId: state.activeTeamId
             }, () => {
@@ -562,6 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const sortBtn = document.getElementById('sort-toggle-btn');
         if (sortBtn) sortBtn.style.display = 'inline-block';
 
+        renderWorkflowSelect();
             renderBoardSelect();
         renderTags(); // Now includes Players section
             renderRecordedTags();
@@ -716,7 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderBoardTags();
             renderBoardComposition();
                 renderSettingsTagsList();
-            renderQuickList();
+            renderWorkflowsList();
             } else {
                 settingsBoardsPanel.style.display = 'none';
                 settingsTeamsPanel.style.display = 'block';
@@ -734,13 +785,16 @@ document.addEventListener('DOMContentLoaded', () => {
             mainBoardSelect.innerHTML = '';
             settingsBoardSelect.innerHTML = '';
 
-        // For main view: show only boards in the quick list, or all boards if quick list is empty
+        // Get active workflow
+        const activeWorkflow = state.workflows.find(w => w.id === state.activeWorkflowId);
+        
+        // For main view: show only boards in the active workflow
         let boardsToShowInMain = state.boards;
-        if (state.quickListBoardIds.length > 0) {
-            boardsToShowInMain = state.boards.filter(board => state.quickListBoardIds.includes(board.id));
+        if (activeWorkflow && activeWorkflow.boardIds && activeWorkflow.boardIds.length > 0) {
+            boardsToShowInMain = state.boards.filter(board => activeWorkflow.boardIds.includes(board.id));
         }
 
-        // If no boards match the quick list (e.g., boards were deleted), show all
+        // If no boards match the workflow (e.g., boards were deleted), show all
         if (boardsToShowInMain.length === 0) {
             boardsToShowInMain = state.boards;
         }
@@ -1710,125 +1764,209 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderQuickList() {
-        const quickListContainer = document.getElementById('quick-list-boards');
-        if (!quickListContainer) return;
+    function renderWorkflowsList() {
+        if (!workflowsList) return;
 
-        quickListContainer.innerHTML = '';
+        workflowsList.innerHTML = '';
 
-        if (state.boards.length === 0) {
-            quickListContainer.innerHTML = '<li class="empty-state">No boards available</li>';
+        if (state.workflows.length === 0) {
+            workflowsList.innerHTML = '<li class="empty-state">No workflows defined</li>';
             return;
         }
 
-        // Group boards by tags
-        const boardsByTag = {};
-        const untaggedBoards = [];
+        state.workflows.forEach(workflow => {
+            const li = document.createElement('li');
+            li.style.marginBottom = '8px';
 
-        state.boards.forEach(board => {
-            if (board.boardTags && board.boardTags.length > 0) {
-                board.boardTags.forEach(tag => {
-                    if (!boardsByTag[tag]) {
-                        boardsByTag[tag] = [];
+            const itemDiv = document.createElement('div');
+            itemDiv.style.cssText = `
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px;
+                background: ${workflow.id === state.activeWorkflowId ? '#3498db' : '#f8f9fa'};
+                color: ${workflow.id === state.activeWorkflowId ? 'white' : '#333'};
+                border-radius: 6px;
+                cursor: pointer;
+            `;
+
+            const infoDiv = document.createElement('div');
+            infoDiv.style.flexGrow = '1';
+            infoDiv.innerHTML = `
+                <strong>${workflow.name}</strong>
+                <div style="font-size: 10px; opacity: 0.8; margin-top: 2px;">
+                    ${workflow.boardIds.length === 0 ? 'All boards' : workflow.boardIds.length + ' board(s)'}
+                    ${workflow.description ? ' • ' + workflow.description : ''}
+                </div>
+            `;
+
+            // Click to activate
+            infoDiv.onclick = () => {
+                state.activeWorkflowId = workflow.id;
+                saveGlobalState();
+                renderWorkflowsList();
+                renderWorkflowSelect();
+                renderBoardSelect();
+            };
+
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.style.cssText = 'display: flex; gap: 4px;';
+
+            // Edit button
+            const editBtn = document.createElement('button');
+            editBtn.textContent = '✎';
+            editBtn.style.cssText = `
+                padding: 4px 8px;
+                font-size: 12px;
+                background: transparent;
+                color: ${workflow.id === state.activeWorkflowId ? 'white' : '#666'};
+                border: 1px solid ${workflow.id === state.activeWorkflowId ? 'rgba(255,255,255,0.5)' : '#ddd'};
+                border-radius: 4px;
+                cursor: pointer;
+                width: auto;
+            `;
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                openWorkflowModal(workflow);
+            };
+
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = '×';
+            deleteBtn.style.cssText = `
+                padding: 4px 8px;
+                font-size: 14px;
+                background: transparent;
+                color: ${workflow.id === state.activeWorkflowId ? 'white' : '#e74c3c'};
+                border: 1px solid ${workflow.id === state.activeWorkflowId ? 'rgba(255,255,255,0.5)' : '#e74c3c'};
+                border-radius: 4px;
+                cursor: pointer;
+                width: auto;
+            `;
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (state.workflows.length <= 1) {
+                    alert("Cannot delete the last workflow.");
+                    return;
+                }
+                if (confirm(`Delete workflow "${workflow.name}"?`)) {
+                    state.workflows = state.workflows.filter(w => w.id !== workflow.id);
+                    if (state.activeWorkflowId === workflow.id) {
+                        state.activeWorkflowId = state.workflows[0].id;
                     }
-                    boardsByTag[tag].push(board);
-                });
-            } else {
-                untaggedBoards.push(board);
-            }
+                    saveGlobalState();
+                    renderWorkflowsList();
+                    renderWorkflowSelect();
+                    renderBoardSelect();
+                }
+            };
+
+            buttonsDiv.appendChild(editBtn);
+            buttonsDiv.appendChild(deleteBtn);
+
+            itemDiv.appendChild(infoDiv);
+            itemDiv.appendChild(buttonsDiv);
+            li.appendChild(itemDiv);
+            workflowsList.appendChild(li);
         });
+    }
 
-        // Render boards grouped by tags
-        Object.keys(boardsByTag).sort().forEach(tag => {
-            // Tag header
-            const tagHeader = document.createElement('li');
-            tagHeader.style.fontWeight = 'bold';
-            tagHeader.style.fontSize = '11px';
-            tagHeader.style.color = '#7f8c8d';
-            tagHeader.style.marginTop = '8px';
-            tagHeader.style.marginBottom = '4px';
-            tagHeader.textContent = tag;
-            quickListContainer.appendChild(tagHeader);
+    function renderWorkflowSelect() {
+        if (!mainWorkflowSelect) return;
 
-            // Boards under this tag
-            boardsByTag[tag].forEach(board => {
-                quickListContainer.appendChild(createQuickListItem(board));
-            });
+        mainWorkflowSelect.innerHTML = '';
+
+        state.workflows.forEach(workflow => {
+            const option = document.createElement('option');
+            option.value = workflow.id;
+            option.textContent = workflow.name;
+            option.selected = workflow.id === state.activeWorkflowId;
+            mainWorkflowSelect.appendChild(option);
         });
+    }
 
-        // Render untagged boards
-        if (untaggedBoards.length > 0) {
-            if (Object.keys(boardsByTag).length > 0) {
-                const otherHeader = document.createElement('li');
-                otherHeader.style.fontWeight = 'bold';
-                otherHeader.style.fontSize = '11px';
-                otherHeader.style.color = '#7f8c8d';
-                otherHeader.style.marginTop = '8px';
-                otherHeader.style.marginBottom = '4px';
-                otherHeader.textContent = 'Other';
-                quickListContainer.appendChild(otherHeader);
-            }
+    function openWorkflowModal(workflow = null) {
+        state.editingWorkflowId = workflow ? workflow.id : null;
 
-            untaggedBoards.forEach(board => {
-                quickListContainer.appendChild(createQuickListItem(board));
+        // Set modal title
+        if (workflowModalTitle) {
+            workflowModalTitle.textContent = workflow ? 'Edit Workflow' : 'New Workflow';
+        }
+
+        // Populate fields
+        if (workflowNameInput) {
+            workflowNameInput.value = workflow ? workflow.name : '';
+        }
+        if (workflowDescInput) {
+            workflowDescInput.value = workflow ? (workflow.description || '') : '';
+        }
+
+        // Render board checkboxes
+        if (workflowBoardsCheckboxes) {
+            workflowBoardsCheckboxes.innerHTML = '';
+
+            state.boards.forEach(board => {
+                const label = document.createElement('label');
+                label.style.cssText = 'display: flex; align-items: center; padding: 6px; cursor: pointer; font-size: 12px;';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = board.id;
+                checkbox.checked = workflow ? workflow.boardIds.includes(board.id) : false;
+                checkbox.style.marginRight = '8px';
+
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(board.name));
+                workflowBoardsCheckboxes.appendChild(label);
             });
+        }
+
+        if (workflowModal) {
+            workflowModal.style.display = 'flex';
         }
     }
 
-    function createQuickListItem(board) {
-        const li = document.createElement('li');
-        const isSelected = state.quickListBoardIds.includes(board.id);
-
-        // Create styled button instead of checkbox
-        const itemDiv = document.createElement('div');
-        itemDiv.style.display = 'flex';
-        itemDiv.style.alignItems = 'center';
-        itemDiv.style.padding = '8px';
-        itemDiv.style.fontSize = '13px';
-        itemDiv.style.cursor = 'pointer';
-        itemDiv.style.borderRadius = '4px';
-        itemDiv.style.marginBottom = '2px';
-        itemDiv.style.transition = 'all 0.2s';
-
-        if (isSelected) {
-            itemDiv.style.backgroundColor = '#27ae60';
-            itemDiv.style.color = 'white';
-            itemDiv.style.fontWeight = '500';
-        } else {
-            itemDiv.style.backgroundColor = '#f8f9fa';
-            itemDiv.style.color = '#333';
+    function saveWorkflow() {
+        const name = workflowNameInput ? workflowNameInput.value.trim() : '';
+        if (!name) {
+            alert("Please enter a workflow name.");
+            return;
         }
 
-        // Hover effect
-        itemDiv.onmouseenter = () => {
-            if (isSelected) {
-                itemDiv.style.backgroundColor = '#229954';
-            } else {
-                itemDiv.style.backgroundColor = '#e9ecef';
-            }
-        };
-        itemDiv.onmouseleave = () => {
-            if (isSelected) {
-                itemDiv.style.backgroundColor = '#27ae60';
-            } else {
-                itemDiv.style.backgroundColor = '#f8f9fa';
-            }
-        };
+        const description = workflowDescInput ? workflowDescInput.value.trim() : '';
+        const boardIds = workflowBoardsCheckboxes 
+            ? Array.from(workflowBoardsCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value)
+            : [];
 
-        itemDiv.onclick = () => {
-            if (state.quickListBoardIds.includes(board.id)) {
-                state.quickListBoardIds = state.quickListBoardIds.filter(id => id !== board.id);
-            } else {
-                state.quickListBoardIds.push(board.id);
+        if (state.editingWorkflowId) {
+            // Update existing workflow
+            const workflow = state.workflows.find(w => w.id === state.editingWorkflowId);
+            if (workflow) {
+                workflow.name = name;
+                workflow.description = description;
+                workflow.boardIds = boardIds;
             }
-            saveSessionState();
-            renderBoardSelect();
-            renderQuickList();
-        };
+        } else {
+            // Create new workflow
+            const newWorkflow = {
+                id: 'workflow_' + Date.now(),
+                name: name,
+                description: description,
+                boardIds: boardIds
+            };
+            state.workflows.push(newWorkflow);
+            state.activeWorkflowId = newWorkflow.id;
+        }
 
-        itemDiv.textContent = board.name;
-        li.appendChild(itemDiv);
-        return li;
+        saveGlobalState();
+        renderWorkflowsList();
+        renderWorkflowSelect();
+        renderBoardSelect();
+
+        if (workflowModal) {
+            workflowModal.style.display = 'none';
+        }
+        state.editingWorkflowId = null;
     }
 
     // --- Tagging Functions ---
@@ -2198,6 +2336,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Main View Selects
+        if (mainWorkflowSelect) {
+            mainWorkflowSelect.addEventListener('change', (e) => {
+                state.activeWorkflowId = e.target.value;
+                saveGlobalState();
+                renderBoardSelect();
+                renderTags();
+            });
+        }
+
         mainBoardSelect.addEventListener('change', (e) => {
             state.activeBoardId = e.target.value;
             saveGlobalState();
@@ -2544,6 +2691,26 @@ document.addEventListener('DOMContentLoaded', () => {
             cancelImportBtn.addEventListener('click', () => {
                 importModal.style.display = 'none';
                 state.pendingImport = null;
+            });
+        }
+
+        // Workflow Management
+        if (newWorkflowBtn) {
+            newWorkflowBtn.addEventListener('click', () => {
+                openWorkflowModal();
+            });
+        }
+
+        if (saveWorkflowBtn) {
+            saveWorkflowBtn.addEventListener('click', saveWorkflow);
+        }
+
+        if (cancelWorkflowBtn) {
+            cancelWorkflowBtn.addEventListener('click', () => {
+                if (workflowModal) {
+                    workflowModal.style.display = 'none';
+                }
+                state.editingWorkflowId = null;
             });
         }
 

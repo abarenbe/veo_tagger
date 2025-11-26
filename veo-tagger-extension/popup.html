@@ -266,11 +266,15 @@
     <div class="game-controls"
       style="margin-bottom: 15px; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee;">
       <div style="margin-bottom: 8px;">
-        <label style="font-size: 11px; color: #7f8c8d; display: block; margin-bottom: 2px;">Active Board</label>
+        <label style="font-size: 11px; color: #7f8c8d; display: block; margin-bottom: 2px;">Workflow</label>
+        <select id="main-workflow-select"
+          style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background: #3498db; color: white; font-weight: bold;"></select>
+      </div>
+      <div>
+        <label style="font-size: 11px; color: #7f8c8d; display: block; margin-bottom: 2px;">Board</label>
         <select id="main-board-select"
           style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px;"></select>
       </div>
-      <!-- Team Select moved to Settings -->
     </div>
 
     <div id="tags-container">
@@ -374,25 +378,13 @@
       </div>
 
       <div style="margin-top: 15px; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee;">
-        <h3 style="margin: 0 0 10px 0;">Game Quick List</h3>
-        <p style="font-size: 11px; color: #7f8c8d; margin-bottom: 10px;">Select boards to show in the main dropdown for
-          this game.</p>
-        <ul id="quick-list-boards" style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto;">
-          <li>
-            <label style="display: flex; align-items: center; padding: 5px; font-size: 13px; cursor: pointer;">
-              <input type="checkbox" checked style="margin-right: 8px;"> Soccer (Basic)
-            </label>
-          </li>
-          <li>
-            <label style="display: flex; align-items: center; padding: 5px; font-size: 13px; cursor: pointer;">
-              <input type="checkbox" style="margin-right: 8px;"> Soccer (Advanced)
-            </label>
-          </li>
-          <li>
-            <label style="display: flex; align-items: center; padding: 5px; font-size: 13px; cursor: pointer;">
-              <input type="checkbox" style="margin-right: 8px;"> Basketball
-            </label>
-          </li>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="margin: 0;">Workflows</h3>
+          <button id="new-workflow-btn" style="width: auto; padding: 4px 8px; font-size: 11px; background-color: #27ae60;">+ New</button>
+        </div>
+        <p style="font-size: 11px; color: #7f8c8d; margin-bottom: 10px;">Workflows define which boards are available together.</p>
+        <ul id="workflows-list" style="list-style: none; padding: 0; max-height: 200px; overflow-y: auto;">
+          <!-- Workflows will be rendered here -->
         </ul>
       </div>
     </div>
@@ -575,6 +567,24 @@
       </ul>
       <div class="modal-actions">
         <button id="close-lineup-btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflow Modal -->
+  <div id="workflow-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3 id="workflow-modal-title">New Workflow</h3>
+      <label>Name: <input type="text" id="workflow-name-input" placeholder="e.g., Soccer Analysis"></label>
+      <label style="display: block; margin-top: 10px;">Description: <input type="text" id="workflow-desc-input" placeholder="Optional description"></label>
+      <label style="display: block; margin-top: 10px; margin-bottom: 5px;">Boards in this workflow:</label>
+      <div id="workflow-boards-checkboxes" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 4px; background: #f9f9f9;">
+        <!-- Board checkboxes will be generated here -->
+      </div>
+      <p style="font-size: 10px; color: #7f8c8d; margin-top: 5px;">Leave empty to show all boards.</p>
+      <div class="modal-actions">
+        <button id="save-workflow-btn">Save</button>
+        <button id="cancel-workflow-btn" style="background-color: #95a5a6;">Cancel</button>
       </div>
     </div>
   </div>
