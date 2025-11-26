@@ -184,26 +184,30 @@ document.addEventListener('DOMContentLoaded', () => {
             id: 'possession_details',
             name: 'Possession Details',
             boardTags: ['Soccer', 'Possession'],
-            // Include game state tags at top for context
-            includeTags: { from: ['game_state'], position: 'top' },
-            // Only show tags from game state and this board
+            // NO includeTags - we don't want game state BUTTONS here
+            includeTags: { from: [], position: 'top' },
+            // Show recorded events from game state (timestamps to jump to)
             showRecordedFrom: ['game_state', 'possession_details'],
             tags: [
-                // Actions
-                { id: 'pd1', name: 'Pass', type: 'event', hotkey: 'p', color: '#3498db', subTagBoard: null },
-                { id: 'pd2', name: 'Dribble', type: 'event', hotkey: 'd', color: '#9b59b6', subTagBoard: null },
-                { id: 'pd3', name: 'Shot', type: 'event', hotkey: 's', color: '#e74c3c', subTagBoard: null },
-                { id: 'pd4', name: 'Cross', type: 'event', hotkey: 'c', color: '#1abc9c', subTagBoard: null },
-                { id: 'pd5', name: 'Turn', type: 'event', hotkey: 't', color: '#f1c40f', subTagBoard: null },
-                { id: 'pd6', name: 'Lost Ball', type: 'event', hotkey: 'l', color: '#7f8c8d', subTagBoard: null },
-                // Third of field (zones)
-                { id: 'pd7', name: 'A3 (Attack)', type: 'event', hotkey: 'a', color: '#e74c3c', subTagBoard: null },
-                { id: 'pd8', name: 'M3 (Middle)', type: 'event', hotkey: 'm', color: '#f39c12', subTagBoard: null },
-                { id: 'pd9', name: 'D3 (Defense)', type: 'event', hotkey: 'z', color: '#27ae60', subTagBoard: null },
-                // Side of field (channels)
-                { id: 'pd10', name: 'Left', type: 'event', hotkey: 'q', color: '#2980b9', subTagBoard: null },
-                { id: 'pd11', name: 'Center', type: 'event', hotkey: 'w', color: '#8e44ad', subTagBoard: null },
-                { id: 'pd12', name: 'Right', type: 'event', hotkey: 'e', color: '#16a085', subTagBoard: null }
+                // Actions - half width for 2 per row
+                { id: 'pd1', name: 'Pass', type: 'event', hotkey: 'p', color: '#3498db', subTagBoard: null, width: 'half' },
+                { id: 'pd2', name: 'Dribble', type: 'event', hotkey: 'd', color: '#9b59b6', subTagBoard: null, width: 'half' },
+                { id: 'pd3', name: 'Shot', type: 'event', hotkey: 's', color: '#e74c3c', subTagBoard: null, width: 'half' },
+                { id: 'pd4', name: 'Cross', type: 'event', hotkey: 'c', color: '#1abc9c', subTagBoard: null, width: 'half' },
+                { id: 'pd5', name: 'Turn', type: 'event', hotkey: 't', color: '#f1c40f', subTagBoard: null, width: 'half' },
+                { id: 'pd6', name: 'Lost Ball', type: 'event', hotkey: 'l', color: '#7f8c8d', subTagBoard: null, width: 'half' },
+                // Section divider
+                { id: 'pd_div1', name: 'Vertical Third', type: 'section', color: '#bdc3c7' },
+                // Third of field (zones) - third width for 3 per row
+                { id: 'pd7', name: 'A3', type: 'event', hotkey: 'a', color: '#e74c3c', subTagBoard: null, width: 'third' },
+                { id: 'pd8', name: 'M3', type: 'event', hotkey: 'm', color: '#f39c12', subTagBoard: null, width: 'third' },
+                { id: 'pd9', name: 'D3', type: 'event', hotkey: 'z', color: '#27ae60', subTagBoard: null, width: 'third' },
+                // Section divider
+                { id: 'pd_div2', name: 'Horizontal Third', type: 'section', color: '#bdc3c7' },
+                // Side of field (channels) - third width for 3 per row
+                { id: 'pd10', name: 'Left', type: 'event', hotkey: 'q', color: '#2980b9', subTagBoard: null, width: 'third' },
+                { id: 'pd11', name: 'Center', type: 'event', hotkey: 'w', color: '#8e44ad', subTagBoard: null, width: 'third' },
+                { id: 'pd12', name: 'Right', type: 'event', hotkey: 'e', color: '#16a085', subTagBoard: null, width: 'third' }
             ]
         },
         // ===== EXISTING BOARDS =====
@@ -830,8 +834,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Render this board's own tags
-            activeBoard.tags.forEach(tag => {
-            renderTagButton(tag, activeBoard.id);
+        activeBoard.tags.forEach(tag => {
+            if (tag.type === 'section') {
+                renderSectionDivider(tag);
+            } else {
+                renderTagButton(tag, activeBoard.id);
+            }
         });
 
         // Render included tags at bottom if configured
@@ -855,7 +863,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const board = state.boards.find(b => b.id === boardId);
             if (board && board.tags) {
                 board.tags.forEach(tag => {
-                    renderTagButton(tag, boardId, true);
+                    if (tag.type !== 'section') {
+                        renderTagButton(tag, boardId, true);
+                    }
                 });
             }
         });
@@ -866,9 +876,50 @@ document.addEventListener('DOMContentLoaded', () => {
         tagsContainer.appendChild(separator);
     }
 
+    function renderSectionDivider(tag) {
+        const divider = document.createElement('div');
+        divider.style.cssText = `
+            grid-column: 1/-1;
+            display: flex;
+            align-items: center;
+            margin: 10px 0 5px 0;
+            gap: 8px;
+        `;
+
+        const line1 = document.createElement('div');
+        line1.style.cssText = 'flex: 0 0 10px; height: 1px; background: #bdc3c7;';
+
+        const label = document.createElement('span');
+        label.style.cssText = 'font-size: 10px; color: #7f8c8d; text-transform: uppercase; white-space: nowrap;';
+        label.textContent = tag.name;
+
+        const line2 = document.createElement('div');
+        line2.style.cssText = 'flex: 1; height: 1px; background: #bdc3c7;';
+
+        divider.appendChild(line1);
+        divider.appendChild(label);
+        divider.appendChild(line2);
+        tagsContainer.appendChild(divider);
+    }
+
     function renderTagButton(tag, sourceBoardId, isIncluded = false) {
-                const btn = document.createElement('button');
-                btn.className = 'tag-btn';
+        const btn = document.createElement('button');
+        btn.className = 'tag-btn';
+
+        // Handle width property (grid is 6 columns: full=6, half=3, third=2)
+        const width = tag.width || 'half'; // default to half (2 per row)
+        switch (width) {
+            case 'full':
+                btn.style.gridColumn = 'span 6'; // span all 6 columns
+                break;
+            case 'third':
+                btn.classList.add('tag-btn-third'); // span 2 columns (3 per row)
+                break;
+            case 'half':
+            default:
+                // Default: span 3 columns (2 per row) - handled by CSS
+                break;
+        }
 
         // Check if this is an active duration tag
         const isActiveDuration = tag.type === 'duration' && state.activeDurationTags[tag.name];
@@ -878,7 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.style.animation = 'pulse 1s infinite';
             btn.classList.add('duration-active');
         } else {
-                btn.style.backgroundColor = tag.color;
+            btn.style.backgroundColor = tag.color;
         }
 
         // Dim included tags slightly
@@ -886,7 +937,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.style.opacity = '0.85';
         }
 
-                btn.textContent = tag.name;
+        btn.textContent = tag.name;
 
         // Show indicator if tag has a sub-board
         if (tag.subTagBoard) {

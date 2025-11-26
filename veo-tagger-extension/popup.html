@@ -61,9 +61,18 @@
 
     #tags-container {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
       margin-bottom: 15px;
+    }
+
+    /* Tag button widths */
+    .tag-btn {
+      grid-column: span 3; /* Default: half width (3 of 6 columns) */
+    }
+
+    .tag-btn-third {
+      grid-column: span 2 !important; /* Third width (2 of 6 columns) */
     }
 
     .tag-btn {
