@@ -2124,8 +2124,12 @@ document.addEventListener('DOMContentLoaded', () => {
             state.currentEditingChildIndex = null;
         });
 
-        // Sub mode toggle
-        subModeToggle.addEventListener('change', renderOnField);
+        // Sub mode toggle (element exists but hidden, toggle is now in Players section)
+        if (subModeToggle) {
+            subModeToggle.addEventListener('change', () => {
+                renderTags(); // Re-render to update player button styles
+            });
+        }
 
         // Confirm substitution
         confirmSubBtn.addEventListener('click', () => {
@@ -2359,15 +2363,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Lineup Management
-        lineupBtn.addEventListener('click', () => {
-            renderLineup();
-            lineupModal.style.display = 'flex';
-        });
+        // Lineup Management (lineupBtn may be null if using inline button in Players section)
+        if (lineupBtn) {
+            lineupBtn.addEventListener('click', () => {
+                renderLineup();
+                lineupModal.style.display = 'flex';
+            });
+        }
 
-        closeLineupBtn.addEventListener('click', () => {
-            lineupModal.style.display = 'none';
-        });
+        if (closeLineupBtn) {
+            closeLineupBtn.addEventListener('click', () => {
+                lineupModal.style.display = 'none';
+            });
+        }
 
         // Add Guest Player button in lineup modal
         const addGuestBtn = document.getElementById('add-guest-btn');
