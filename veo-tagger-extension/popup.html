@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 320px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 15px;
+      background-color: #f9f9f9;
+    }
+
+    .header {
+      display: flex;
+      flex-direction: column;
+      border-bottom: 2px solid #e0e0e0;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+
+    h1 {
+      font-size: 18px;
+      color: #333;
+      margin: 0 0 10px 0;
+    }
+
+    .board-controls {
+      display: flex;
+      gap: 5px;
+    }
+
+    #board-select {
+      flex-grow: 1;
+      padding: 5px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+
+    .board-controls button {
+      width: 30px;
+      padding: 5px;
+      font-weight: bold;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    #tags-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .tag-btn {
+      padding: 15px 5px;
+      font-size: 13px;
+      text-align: center;
+      border-radius: 6px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tag-btn .hotkey-hint {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      font-size: 10px;
+      opacity: 0.8;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    #recorded-tags-list {
+      list-style-type: none;
+      padding: 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .tag-item {
+      background: white;
+      border: 1px solid #ddd;
+      padding: 8px;
+      margin-bottom: 5px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .tag-time {
+      font-weight: bold;
+      color: #2980b9;
+      min-width: 60px;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 80%;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-content label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    .modal-content input,
+    .modal-content select {
+      width: 100%;
+      padding: 5px;
+      margin-top: 3px;
+      box-sizing: border-box;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .error {
+      color: #e74c3c;
+      font-size: 12px;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .empty-state {
+      color: #7f8c8d;
+      text-align: center;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    .footer-controls {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      display: flex;
+      align-items: center;
+    }
+
+    #mode-toggle-btn {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      background-color: transparent;
+      color: #7f8c8d;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #mode-toggle-btn:hover {
+      background-color: #f0f0f0;
+      color: #333;
+      border-color: #ccc;
+    }
+
+    /* Duration tag active state animation */
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+      }
+
+      70% {
+        box-shadow: 0 0 0 6px rgba(231, 76, 60, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+      }
+    }
+
+    .tag-btn.duration-active {
+      animation: pulse 1s infinite;
+    }
+
+    /* Tag item hover for click-to-seek */
+    .tag-item .tag-time,
+    .tag-item span:not(:last-child) {
+      cursor: pointer;
+    }
+
+    .tag-item .tag-time:hover,
+    .tag-item span:not(:last-child):hover {
+      text-decoration: underline;
+    }
+
+    /* Guest player styling */
+    .guest-player {
+      background-color: #f3e5f5;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h1>Veo Tagger</h1>
+      <button id="settings-btn" title="Settings"
+        style="width: auto; background-color: transparent; color: #7f8c8d; padding: 5px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+          </path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main View -->
+  <div id="view-main" class="view">
+
+    <!-- Game Setup Controls -->
+    <div class="game-controls"
+      style="margin-bottom: 15px; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee;">
+      <div style="margin-bottom: 8px;">
+        <label style="font-size: 11px; color: #7f8c8d; display: block; margin-bottom: 2px;">Active Board</label>
+        <select id="main-board-select"
+          style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px;"></select>
+      </div>
+      <!-- Team Select moved to Settings -->
+    </div>
+
+    <div id="tags-container">
+      <!-- Tags buttons will be generated here -->
+    </div>
+
+    <hr>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <h3>On Field</h3>
+        <button id="lineup-btn"
+          style="width: auto; padding: 2px 8px; font-size: 11px; background-color: #3498db;">Lineup</button>
+      </div>
+      <label style="font-size: 11px; display: flex; align-items: center; cursor: pointer;">
+        <input type="checkbox" id="sub-mode-toggle" style="width: auto; margin-right: 5px;"> Sub Mode
+      </label>
+    </div>
+    <div id="on-field-container"
+      style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 5px; margin-bottom: 15px;">
+      <!-- On Field players will be generated here -->
+    </div>
+
+    <hr>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3>Recorded Tags</h3>
+      <button id="sort-toggle-btn" style="width: auto; padding: 2px 8px; font-size: 11px; background-color: #95a5a6;"
+        title="Sort by Timestamp / Order Entered">
+        Sort: Entered
+      </button>
+    </div>
+    <ul id="recorded-tags-list">
+      <li class="empty-state">No tags recorded yet.</li>
+    </ul>
+  </div>
+
+  <!-- Settings View -->
+  <div id="view-settings" class="view" style="display: none;">
+    <div style="margin-bottom: 15px; display: flex; justify-content: space-between;">
+      <button id="back-to-main-btn" style="background-color: #95a5a6; width: auto; padding: 5px 10px; font-size: 12px;">
+        &larr; Back to Game
+      </button>
+      <button id="export-btn" style="background-color: #9b59b6; width: auto; padding: 5px 10px; font-size: 12px;">
+        Export CSV
+      </button>
+    </div>
+
+    <div class="tabs" style="display: flex; gap: 10px; margin-bottom: 15px;">
+      <button id="tab-settings-boards" class="tab-btn active"
+        style="flex: 1; background-color: #3498db;">Boards</button>
+      <button id="tab-settings-teams" class="tab-btn" style="flex: 1; background-color: #95a5a6;">Roster</button>
+    </div>
+
+    <!-- Settings: Boards -->
+    <div id="settings-boards-panel">
+      <div class="board-controls" style="margin-bottom: 10px;">
+        <select id="settings-board-select"
+          style="flex-grow: 1; padding: 5px; border-radius: 4px; border: 1px solid #ddd;"></select>
+        <button id="new-board-btn" title="New Board" style="width: 30px;">+</button>
+        <button id="delete-board-btn" title="Delete Board" style="width: 30px; background-color: #e74c3c;">-</button>
+      </div>
+
+      <div style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="margin: 0; font-size: 14px;">Available Categories</h3>
+          <button id="manage-board-tags-btn" style="width: auto; padding: 4px 8px; font-size: 11px; background-color: #9b59b6;">Manage</button>
+        </div>
+        <div id="available-tags-container" style="font-size: 11px; color: #7f8c8d;">
+          <!-- Available tags will be displayed here -->
+        </div>
+      </div>
+
+      <div id="board-tags-display" style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="margin: 0; font-size: 14px;">Board Categories</h3>
+          <button id="edit-board-tags-btn" style="width: auto; padding: 4px 8px; font-size: 11px; background-color: #3498db;">Edit</button>
+        </div>
+        <div id="board-tags-container" style="font-size: 12px; color: #7f8c8d;">
+          <!-- Board tags will be displayed here -->
+        </div>
+      </div>
+
+      <div style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="margin: 0;">Event Tags</h3>
+          <button id="add-tag-btn" style="width: auto; padding: 5px 10px; font-size: 12px; background-color: #2ecc71;">+
+            Add Tag</button>
+        </div>
+        <ul id="settings-tags-list" style="list-style: none; padding: 0; max-height: 300px; overflow-y: auto;">
+          <!-- Tags list for editing -->
+        </ul>
+      </div>
+
+      <div style="margin-top: 15px; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee;">
+        <h3 style="margin: 0 0 10px 0;">Game Quick List</h3>
+        <p style="font-size: 11px; color: #7f8c8d; margin-bottom: 10px;">Select boards to show in the main dropdown for
+          this game.</p>
+        <ul id="quick-list-boards" style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto;">
+          <li>
+            <label style="display: flex; align-items: center; padding: 5px; font-size: 13px; cursor: pointer;">
+              <input type="checkbox" checked style="margin-right: 8px;"> Soccer (Basic)
+            </label>
+          </li>
+          <li>
+            <label style="display: flex; align-items: center; padding: 5px; font-size: 13px; cursor: pointer;">
+              <input type="checkbox" style="margin-right: 8px;"> Soccer (Advanced)
+            </label>
+          </li>
+          <li>
+            <label style="display: flex; align-items: center; padding: 5px; font-size: 13px; cursor: pointer;">
+              <input type="checkbox" style="margin-right: 8px;"> Basketball
+            </label>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Settings: Teams/Roster -->
+    <div id="settings-teams-panel" style="display: none;">
+      <div style="margin-bottom: 10px;">
+        <label style="font-size: 11px; color: #7f8c8d; display: block; margin-bottom: 2px;">Active Team</label>
+        <div class="team-controls" style="display: flex; gap: 5px;">
+          <select id="settings-team-select" style="flex-grow: 1; padding: 5px;"></select>
+          <button id="new-team-btn" title="New Team" style="width: 30px;">+</button>
+          <button id="delete-team-btn" title="Delete Team" style="width: 30px; background-color: #e74c3c;">-</button>
+        </div>
+      </div>
+
+      <div class="add-player-form" style="display: flex; gap: 5px; margin-bottom: 10px;">
+        <input type="number" id="player-number-input" placeholder="#" style="width: 40px;">
+        <input type="text" id="player-name-input" placeholder="Player Name" style="flex-grow: 1;">
+        <button id="add-player-btn" style="width: auto; padding: 5px 10px; background-color: #3498db;">Add</button>
+      </div>
+
+      <div class="roster-header"
+        style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; color: #7f8c8d; margin-bottom: 5px;">
+        <span>Roster</span>
+        <div>
+          <span style="margin-right: 5px;">Squad</span>
+          <span>Start</span>
+        </div>
+      </div>
+      <ul id="roster-list" style="list-style: none; padding: 0; max-height: 300px; overflow-y: auto;">
+        <!-- Player items will be generated here -->
+      </ul>
+    </div>
+  </div>
+
+  <!-- Edit Board Modal Removed -->
+
+  <!-- Substitution Modal -->
+  <div id="sub-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3>Substitution</h3>
+      <p>Subbing out: <span id="sub-out-name" style="font-weight: bold;"></span></p>
+      <label>Sub In:
+        <select id="sub-in-select"></select>
+      </label>
+      <div class="modal-actions">
+        <button id="confirm-sub-btn">Substitute</button>
+        <button id="cancel-sub-btn" style="background-color: #95a5a6;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Team Modal -->
+  <div id="team-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3>New Team</h3>
+      <label>Name: <input type="text" id="team-name-input"></label>
+      <div class="modal-actions">
+        <button id="save-team-btn">Create</button>
+        <button id="cancel-team-btn" style="background-color: #95a5a6;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tag Configuration Modal -->
+  <div id="tag-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3>Configure Tag</h3>
+      <label>Name: <input type="text" id="tag-name-input"></label>
+      <label>Type:
+        <select id="tag-type-input">
+          <option value="event">Event (Point)</option>
+          <option value="duration">Duration (Range)</option>
+        </select>
+      </label>
+      <label>Hotkey: <input type="text" id="tag-hotkey-input" placeholder="Press a key..." readonly></label>
+      <label>Color: <input type="color" id="tag-color-input" value="#f1c40f"></label>
+      <div class="modal-actions">
+        <button id="save-tag-btn">Save</button>
+        <button id="cancel-tag-btn" style="background-color: #95a5a6;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Note Modal -->
+  <div id="note-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3>Add Note</h3>
+      <textarea id="note-input" rows="4"
+        style="width: 100%; padding: 5px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"
+        placeholder="Enter your note here..."></textarea>
+      <div class="modal-actions">
+        <button id="save-note-btn">Save</button>
+        <button id="cancel-note-btn" style="background-color: #95a5a6;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Board Modal -->
+  <div id="board-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3>New Board</h3>
+      <label>Name: <input type="text" id="board-name-input"></label>
+      <label style="display: block; margin-top: 10px; margin-bottom: 5px;">Categories:</label>
+      <div id="board-tags-checkboxes" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 4px; background: #f9f9f9;">
+        <!-- Tag checkboxes will be generated here -->
+      </div>
+      <div class="modal-actions">
+        <button id="save-board-btn">Create</button>
+        <button id="cancel-board-btn" style="background-color: #95a5a6;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lineup Modal -->
+  <div id="lineup-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="margin: 0;">Match Lineup</h3>
+        <button id="add-guest-btn" style="width: auto; padding: 5px 10px; font-size: 11px; background-color: #8e44ad;">+
+          Guest</button>
+      </div>
+      <div
+        style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; color: #7f8c8d; margin-bottom: 5px; padding-right: 10px;">
+        <span>Player</span>
+        <div>
+          <span style="margin-right: 10px;">Squad</span>
+          <span>Start</span>
+        </div>
+      </div>
+      <ul id="lineup-list" style="list-style: none; padding: 0; overflow-y: auto; flex-grow: 1; max-height: 300px;">
+        <!-- Lineup items generated here -->
+      </ul>
+      <div class="modal-actions">
+        <button id="close-lineup-btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="error-msg" class="error"></div>
+
+  <div class="footer-controls">
+    <button id="mode-toggle-btn" title="Pop Out">
+      <svg id="icon-pop-out" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2"
+        fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+        <polyline points="15 3 21 3 21 9"></polyline>
+        <line x1="10" y1="14" x2="21" y2="3"></line>
+      </svg>
+      <svg id="icon-pop-in" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2"
+        fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+        <path d="M15 3h6v6"></path>
+        <path d="M10 14 21 3"></path>
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+      </svg>
+    </button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
