@@ -2,6 +2,7 @@
   "version": "1.0",
   "exportDate": "2025-11-26",
   "type": "veo-tagger-boards",
+  "description": "Game State and Possession Details boards. Number hotkeys (0-9) are reserved for players.",
   "boardTagsList": ["Soccer", "Game Phase", "Possession"],
   "boards": [
     {
@@ -11,15 +12,13 @@
       "includeTags": { "from": [], "position": "top" },
       "showRecordedFrom": "*",
       "tags": [
-        { "id": "gs1", "name": "1st Half", "type": "duration", "hotkey": "1", "color": "#2c3e50", "subTagBoard": null, "width": "half" },
-        { "id": "gs2", "name": "2nd Half", "type": "duration", "hotkey": "2", "color": "#34495e", "subTagBoard": null, "width": "half" },
+        { "id": "gs1", "name": "1st Half", "type": "duration", "hotkey": "h", "color": "#2c3e50", "subTagBoard": null, "width": "half" },
+        { "id": "gs2", "name": "2nd Half", "type": "duration", "hotkey": "j", "color": "#34495e", "subTagBoard": null, "width": "half" },
         { "id": "gs_div1", "name": "Game Phase", "type": "section", "color": "#bdc3c7" },
         { "id": "gs3", "name": "In Possession", "type": "duration", "hotkey": "p", "color": "#27ae60", "subTagBoard": "possession_details", "width": "half" },
         { "id": "gs4", "name": "Out of Possession", "type": "duration", "hotkey": "o", "color": "#e74c3c", "subTagBoard": null, "width": "half" },
         { "id": "gs5", "name": "Contested", "type": "duration", "hotkey": "c", "color": "#f39c12", "subTagBoard": null, "width": "half" },
-        { "id": "gs6", "name": "Out of Play", "type": "duration", "hotkey": "x", "color": "#95a5a6", "subTagBoard": null, "width": "half" },
-        { "id": "gs_div2", "name": "Other", "type": "section", "color": "#bdc3c7" },
-        { "id": "gs7", "name": "Substitution", "type": "event", "hotkey": "s", "color": "#9b59b6", "subTagBoard": null, "width": "full" }
+        { "id": "gs6", "name": "Out of Play", "type": "duration", "hotkey": "x", "color": "#95a5a6", "subTagBoard": null, "width": "half" }
       ]
     },
     {

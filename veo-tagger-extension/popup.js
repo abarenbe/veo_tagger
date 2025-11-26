@@ -159,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEFAULT_BOARDS = [
         // ===== GAME STATE BOARD =====
         // Main board for tracking game phases, halves, and possession states
+        // NOTE: Number hotkeys (0-9) are reserved for players!
         {
             id: 'game_state',
             name: 'Game State',
@@ -166,16 +167,16 @@ document.addEventListener('DOMContentLoaded', () => {
             includeTags: { from: [], position: 'top' },
             showRecordedFrom: '*',
             tags: [
-                // Half tracking
-                { id: 'gs1', name: '1st Half', type: 'duration', hotkey: '1', color: '#2c3e50', subTagBoard: null },
-                { id: 'gs2', name: '2nd Half', type: 'duration', hotkey: '2', color: '#34495e', subTagBoard: null },
+                // Half tracking (use letter hotkeys, not numbers)
+                { id: 'gs1', name: '1st Half', type: 'duration', hotkey: 'h', color: '#2c3e50', subTagBoard: null, width: 'half' },
+                { id: 'gs2', name: '2nd Half', type: 'duration', hotkey: 'j', color: '#34495e', subTagBoard: null, width: 'half' },
+                // Section divider
+                { id: 'gs_div1', name: 'Game Phase', type: 'section', color: '#bdc3c7' },
                 // Game phase - possession states (double-tap opens possession board)
-                { id: 'gs3', name: 'In Possession', type: 'duration', hotkey: 'p', color: '#27ae60', subTagBoard: 'possession_details' },
-                { id: 'gs4', name: 'Out of Possession', type: 'duration', hotkey: 'o', color: '#e74c3c', subTagBoard: null },
-                { id: 'gs5', name: 'Contested', type: 'duration', hotkey: 'c', color: '#f39c12', subTagBoard: null },
-                { id: 'gs6', name: 'Out of Play', type: 'duration', hotkey: 'x', color: '#95a5a6', subTagBoard: null },
-                // Substitution marker
-                { id: 'gs7', name: 'Substitution', type: 'event', hotkey: 's', color: '#9b59b6', subTagBoard: null }
+                { id: 'gs3', name: 'In Possession', type: 'duration', hotkey: 'p', color: '#27ae60', subTagBoard: 'possession_details', width: 'half' },
+                { id: 'gs4', name: 'Out of Possession', type: 'duration', hotkey: 'o', color: '#e74c3c', subTagBoard: null, width: 'half' },
+                { id: 'gs5', name: 'Contested', type: 'duration', hotkey: 'c', color: '#f39c12', subTagBoard: null, width: 'half' },
+                { id: 'gs6', name: 'Out of Play', type: 'duration', hotkey: 'x', color: '#95a5a6', subTagBoard: null, width: 'half' }
             ]
         },
         // ===== POSSESSION DETAILS BOARD =====
@@ -850,6 +851,117 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderIncludedTags(activeBoard.includeTags.from);
             }
         }
+
+        // Always render Players section at the bottom of every board
+        renderPlayersSection();
+    }
+
+    function renderPlayersSection() {
+        const activeTeam = state.teams.find(t => t.id === state.activeTeamId);
+        
+        // Combine team players and guests
+        let allPlayers = [];
+        if (activeTeam) {
+            allPlayers = [...activeTeam.players];
+        }
+        if (state.matchState.guests) {
+            allPlayers = [...allPlayers, ...state.matchState.guests];
+        }
+
+        // Section divider for Players
+        const divider = document.createElement('div');
+        divider.style.cssText = `
+            grid-column: 1/-1;
+            display: flex;
+            align-items: center;
+            margin: 12px 0 5px 0;
+            gap: 8px;
+        `;
+
+        const line1 = document.createElement('div');
+        line1.style.cssText = 'flex: 0 0 10px; height: 1px; background: #34495e;';
+
+        const label = document.createElement('span');
+        label.style.cssText = 'font-size: 10px; color: #34495e; text-transform: uppercase; white-space: nowrap; font-weight: bold;';
+        label.textContent = 'Players (1-99)';
+
+        const line2 = document.createElement('div');
+        line2.style.cssText = 'flex: 1; height: 1px; background: #34495e;';
+
+        // Sub mode toggle
+        const subToggleLabel = document.createElement('label');
+        subToggleLabel.style.cssText = 'display: flex; align-items: center; font-size: 10px; color: #e74c3c; cursor: pointer; white-space: nowrap;';
+        
+        const subCheckbox = document.createElement('input');
+        subCheckbox.type = 'checkbox';
+        subCheckbox.checked = subModeToggle ? subModeToggle.checked : false;
+        subCheckbox.style.cssText = 'margin-right: 4px; width: auto;';
+        subCheckbox.onchange = (e) => {
+            if (subModeToggle) {
+                subModeToggle.checked = e.target.checked;
+                subModeToggle.dispatchEvent(new Event('change'));
+            }
+            renderTags(); // Re-render to update player button styles
+        };
+        
+        subToggleLabel.appendChild(subCheckbox);
+        subToggleLabel.appendChild(document.createTextNode('Sub'));
+
+        divider.appendChild(line1);
+        divider.appendChild(label);
+        divider.appendChild(line2);
+        divider.appendChild(subToggleLabel);
+        tagsContainer.appendChild(divider);
+
+        // Player buttons container
+        const playersContainer = document.createElement('div');
+        playersContainer.style.cssText = `
+            grid-column: 1/-1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 5px;
+        `;
+
+        if (state.matchState.onField.length === 0) {
+            const emptyMsg = document.createElement('span');
+            emptyMsg.style.cssText = 'font-size: 11px; color: #7f8c8d; font-style: italic;';
+            emptyMsg.textContent = 'No players on field. Click Lineup to set.';
+            playersContainer.appendChild(emptyMsg);
+        } else {
+            const isSubMode = subModeToggle ? subModeToggle.checked : false;
+            
+            state.matchState.onField.forEach(playerId => {
+                const player = allPlayers.find(p => p.id === playerId);
+                if (!player) return;
+
+                const btn = document.createElement('button');
+                btn.style.cssText = `
+                    padding: 6px 10px;
+                    font-size: 11px;
+                    border-radius: 4px;
+                    border: ${isSubMode ? '2px solid #e74c3c' : 'none'};
+                    cursor: pointer;
+                    background-color: ${player.isGuest ? '#8e44ad' : '#34495e'};
+                    color: white;
+                    min-width: 45px;
+                    text-align: center;
+                `;
+
+                btn.innerHTML = `<strong>${player.number}</strong>`;
+                btn.title = `${player.name}${isSubMode ? ' - Click to sub out' : ' - Click to tag'}`;
+
+                if (isSubMode) {
+                    btn.onclick = () => openSubModal(player);
+                } else {
+                    btn.onclick = () => tagPlayer(player);
+                }
+
+                playersContainer.appendChild(btn);
+            });
+        }
+
+        tagsContainer.appendChild(playersContainer);
     }
 
     function renderIncludedTags(boardIds) {
