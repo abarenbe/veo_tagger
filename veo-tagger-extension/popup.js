@@ -939,8 +939,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const btn = document.createElement('button');
                 btn.style.cssText = `
-                    padding: 8px 4px;
-                    font-size: 12px;
+                    padding: 6px 2px;
+                    font-size: 10px;
                     border-radius: 4px;
                     border: ${isSubMode ? '2px solid #e74c3c' : 'none'};
                     cursor: pointer;
@@ -948,10 +948,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     color: white;
                     text-align: center;
                     width: 100%;
+                    line-height: 1.2;
                 `;
 
-                btn.innerHTML = `<strong>${player.number}</strong>`;
-                btn.title = `${player.name}${isSubMode ? ' - Click to sub out' : ' - Click to tag'}`;
+                // Show number and first name (or shortened name)
+                const firstName = player.name.split(' ')[0];
+                const shortName = firstName.length > 6 ? firstName.substring(0, 5) + '.' : firstName;
+                btn.innerHTML = `<strong>${player.number}</strong><br><span style="font-size: 9px;">${shortName}</span>`;
+                btn.title = `${player.number} ${player.name}${isSubMode ? ' - Click to sub out' : ' - Click to tag'}`;
 
                 if (isSubMode) {
                     btn.onclick = () => openSubModal(player);
