@@ -19,11 +19,48 @@ if (window.veoTaggerLoaded) {
   function findVideoElement() {
     // Try standard query first
     let video = document.querySelector('video');
-    if (video) return video;
+    if (video) {
+      console.log("Veo Tagger: Found video element directly");
+      return video;
+    }
 
-    // Optional: Add logic here to search inside shadow DOMs if needed in the future
-    // For now, we rely on all_frames: true to catch the video in iframes
+    // Try to find video inside any iframes we can access (same-origin only)
+    const iframes = document.querySelectorAll('iframe');
+    for (const iframe of iframes) {
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (iframeDoc) {
+          video = iframeDoc.querySelector('video');
+          if (video) {
+            console.log("Veo Tagger: Found video inside iframe");
+            return video;
+          }
+        }
+      } catch (e) {
+        // Cross-origin iframe, can't access - that's OK, content script runs in all_frames
+      }
+    }
 
+    // Optional: Search in shadow DOMs
+    const searchShadowRoots = (root) => {
+      const elements = root.querySelectorAll('*');
+      for (const el of elements) {
+        if (el.shadowRoot) {
+          const shadowVideo = el.shadowRoot.querySelector('video');
+          if (shadowVideo) return shadowVideo;
+          const nested = searchShadowRoots(el.shadowRoot);
+          if (nested) return nested;
+        }
+      }
+      return null;
+    };
+    video = searchShadowRoots(document);
+    if (video) {
+      console.log("Veo Tagger: Found video in shadow DOM");
+      return video;
+    }
+
+    console.log("Veo Tagger: No video element found in this frame");
     return null;
   }
 
@@ -34,7 +71,9 @@ if (window.veoTaggerLoaded) {
 
       if (video) {
         const currentTime = video.currentTime;
+        console.log("Veo Tagger: Sending timestamp", currentTime);
         sendResponse({ status: "success", timestamp: currentTime });
+        return true; // Keep message channel open
       }
       // IMPORTANT: Do NOT send a response if no video is found.
       // This allows other frames (that might have the video) to respond.

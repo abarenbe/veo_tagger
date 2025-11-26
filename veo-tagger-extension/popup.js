@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainWorkflowSelect = document.getElementById('main-workflow-select');
     const mainBoardSelect = document.getElementById('main-board-select');
     const tagsContainer = document.getElementById('tags-container');
+    
+    // Video Status
+    const videoStatus = document.getElementById('video-status');
+    const videoStatusDot = document.getElementById('video-status-dot');
+    const videoStatusText = document.getElementById('video-status-text');
+    const videoStatusRefresh = document.getElementById('video-status-refresh');
     const onFieldContainer = document.getElementById('on-field-container');
     const recordedTagsList = document.getElementById('recorded-tags-list');
     const subModeToggle = document.getElementById('sub-mode-toggle');
@@ -336,6 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setupSortToggle();
             setupNavigationListener();
             render();
+            checkVideoConnection(); // Check video status on load
         } catch (e) {
             errorMsg.textContent = `Async Init Error: ${e.message}`;
             console.error(e);
@@ -942,7 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const label = document.createElement('span');
         label.style.cssText = 'font-size: 10px; color: #34495e; text-transform: uppercase; white-space: nowrap; font-weight: bold;';
-        label.textContent = 'Players (1-99)';
+        label.textContent = 'On Field';
 
         const line2 = document.createElement('div');
         line2.style.cssText = 'flex: 1; height: 1px; background: #34495e;';
@@ -2122,12 +2129,79 @@ document.addEventListener('DOMContentLoaded', () => {
         state.editingWorkflowId = null;
     }
 
+    // --- Video Status Check ---
+    function checkVideoConnection() {
+        if (!videoStatus) return;
+        
+        videoStatusDot.style.background = '#ffc107';
+        videoStatusText.textContent = 'Checking...';
+        videoStatus.style.background = '#fff3cd';
+        videoStatus.style.color = '#856404';
+        videoStatus.style.borderColor = '#ffc107';
+
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0]) {
+                setVideoStatus('error', 'No active tab');
+                return;
+            }
+
+            if (!tabs[0].url || (!tabs[0].url.includes('veo.co'))) {
+                setVideoStatus('warning', 'Not on Veo page');
+                return;
+            }
+
+            chrome.tabs.sendMessage(tabs[0].id, { action: "getTimestamp" }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn("Video check error:", chrome.runtime.lastError.message);
+                    setVideoStatus('error', 'Content script not loaded. Reload Veo page.');
+                    return;
+                }
+
+                if (response && response.timestamp !== undefined) {
+                    setVideoStatus('success', `Video connected (${formatTime(response.timestamp)})`);
+                } else {
+                    setVideoStatus('warning', 'Video not found. Start video playback.');
+                }
+            });
+        });
+    }
+
+    function setVideoStatus(status, message) {
+        if (!videoStatus) return;
+        
+        if (status === 'success') {
+            videoStatusDot.style.background = '#28a745';
+            videoStatus.style.background = '#d4edda';
+            videoStatus.style.color = '#155724';
+            videoStatus.style.borderColor = '#28a745';
+        } else if (status === 'warning') {
+            videoStatusDot.style.background = '#ffc107';
+            videoStatus.style.background = '#fff3cd';
+            videoStatus.style.color = '#856404';
+            videoStatus.style.borderColor = '#ffc107';
+        } else {
+            videoStatusDot.style.background = '#dc3545';
+            videoStatus.style.background = '#f8d7da';
+            videoStatus.style.color = '#721c24';
+            videoStatus.style.borderColor = '#dc3545';
+        }
+        videoStatusText.textContent = message;
+    }
+
     // --- Tagging Functions ---
     function triggerTag(tag) {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0]) {
                 chrome.tabs.sendMessage(tabs[0].id, { action: "getTimestamp" }, (response) => {
-                    const timestamp = (response && response.timestamp) ? response.timestamp : 0;
+                    if (chrome.runtime.lastError) {
+                        console.warn("Veo Tagger: Error getting timestamp:", chrome.runtime.lastError.message);
+                    }
+                    
+                    const timestamp = (response && response.timestamp !== undefined) ? response.timestamp : 0;
+                    
+                    if (timestamp === 0 && !response) {
+                        console.warn("Veo Tagger: No video timestamp received. Is the video playing? Response:", response);
+                    }
 
                     // Check if we're in sub-tag mode (adding details to a parent tag)
                     if (state.addingToParentTagId) {
@@ -2381,6 +2455,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners Setup ---
     function setupEventListeners() {
+        // Video status refresh
+        if (videoStatusRefresh) {
+            videoStatusRefresh.addEventListener('click', checkVideoConnection);
+        }
+
         // H1 click to fetch game title
         const h1Element = document.querySelector('h1');
         if (h1Element) {
