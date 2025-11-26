@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsTeamsPanel = document.getElementById('settings-teams-panel');
 
     // Settings: Boards
+    const settingsWorkflowSelect = document.getElementById('settings-workflow-select');
     const settingsBoardSelect = document.getElementById('settings-board-select');
     const newBoardBtn = document.getElementById('new-board-btn');
     const deleteBoardBtn = document.getElementById('delete-board-btn');
@@ -762,6 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tabSettingsTeams.classList.remove('active');
                 tabSettingsTeams.style.backgroundColor = '#95a5a6';
 
+            renderSettingsWorkflowSelect();
                 renderBoardSelect();
             renderAvailableTags();
             renderBoardTags();
@@ -1885,6 +1887,146 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderSettingsWorkflowSelect() {
+        if (!settingsWorkflowSelect) return;
+
+        settingsWorkflowSelect.innerHTML = '';
+
+        state.workflows.forEach(workflow => {
+            const option = document.createElement('option');
+            option.value = workflow.id;
+            option.textContent = workflow.name;
+            option.selected = workflow.id === state.activeWorkflowId;
+            settingsWorkflowSelect.appendChild(option);
+        });
+    }
+
+    // --- Arrow Key Navigation for Workflows ---
+    function getBoardHierarchy() {
+        // Build a hierarchy of boards based on subTagBoard relationships
+        const activeWorkflow = state.workflows.find(w => w.id === state.activeWorkflowId);
+        let workflowBoards = state.boards;
+        
+        if (activeWorkflow && activeWorkflow.boardIds && activeWorkflow.boardIds.length > 0) {
+            workflowBoards = state.boards.filter(b => activeWorkflow.boardIds.includes(b.id));
+        }
+
+        // Find root boards (boards not referenced as subTagBoard by any other board in workflow)
+        const childBoardIds = new Set();
+        workflowBoards.forEach(board => {
+            board.tags.forEach(tag => {
+                if (tag.subTagBoard && activeWorkflow.boardIds.includes(tag.subTagBoard)) {
+                    childBoardIds.add(tag.subTagBoard);
+                }
+            });
+        });
+
+        const rootBoards = workflowBoards.filter(b => !childBoardIds.has(b.id));
+        
+        return {
+            workflowBoards,
+            rootBoards,
+            childBoardIds
+        };
+    }
+
+    function getParentBoard(boardId) {
+        // Find which board has a tag with subTagBoard pointing to this board
+        const activeWorkflow = state.workflows.find(w => w.id === state.activeWorkflowId);
+        let searchBoards = state.boards;
+        
+        if (activeWorkflow && activeWorkflow.boardIds && activeWorkflow.boardIds.length > 0) {
+            searchBoards = state.boards.filter(b => activeWorkflow.boardIds.includes(b.id));
+        }
+
+        for (const board of searchBoards) {
+            for (const tag of board.tags) {
+                if (tag.subTagBoard === boardId) {
+                    return board;
+                }
+            }
+        }
+        return null;
+    }
+
+    function getChildBoards(boardId) {
+        // Find boards that are referenced as subTagBoard from this board's tags
+        const board = state.boards.find(b => b.id === boardId);
+        if (!board) return [];
+
+        const activeWorkflow = state.workflows.find(w => w.id === state.activeWorkflowId);
+        const childIds = new Set();
+        
+        board.tags.forEach(tag => {
+            if (tag.subTagBoard) {
+                // Only include if it's in the workflow
+                if (!activeWorkflow || activeWorkflow.boardIds.length === 0 || 
+                    activeWorkflow.boardIds.includes(tag.subTagBoard)) {
+                    childIds.add(tag.subTagBoard);
+                }
+            }
+        });
+
+        return state.boards.filter(b => childIds.has(b.id));
+    }
+
+    function getSiblingBoards(boardId) {
+        // Get boards at the same level
+        const parent = getParentBoard(boardId);
+        
+        if (parent) {
+            // Has a parent, siblings are other children of that parent
+            return getChildBoards(parent.id);
+        } else {
+            // No parent, siblings are other root boards
+            const { rootBoards } = getBoardHierarchy();
+            return rootBoards;
+        }
+    }
+
+    function navigateBoards(direction) {
+        const currentBoard = state.boards.find(b => b.id === state.activeBoardId);
+        if (!currentBoard) return;
+
+        let newBoardId = null;
+
+        switch (direction) {
+            case 'left': // Go up to parent
+                const parent = getParentBoard(state.activeBoardId);
+                if (parent) {
+                    newBoardId = parent.id;
+                }
+                break;
+
+            case 'right': // Go down to first child
+                const children = getChildBoards(state.activeBoardId);
+                if (children.length > 0) {
+                    newBoardId = children[0].id;
+                }
+                break;
+
+            case 'up': // Previous sibling
+            case 'down': // Next sibling
+                const siblings = getSiblingBoards(state.activeBoardId);
+                const currentIndex = siblings.findIndex(b => b.id === state.activeBoardId);
+                if (currentIndex >= 0) {
+                    const newIndex = direction === 'up' 
+                        ? (currentIndex - 1 + siblings.length) % siblings.length
+                        : (currentIndex + 1) % siblings.length;
+                    newBoardId = siblings[newIndex].id;
+                }
+                break;
+        }
+
+        if (newBoardId && newBoardId !== state.activeBoardId) {
+            state.activeBoardId = newBoardId;
+            saveGlobalState();
+            renderBoardSelect();
+            renderTags();
+            renderRecordedTags();
+        }
+    }
+
     function openWorkflowModal(workflow = null) {
         state.editingWorkflowId = workflow ? workflow.id : null;
 
@@ -2352,6 +2494,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Settings View Selects
+        if (settingsWorkflowSelect) {
+            settingsWorkflowSelect.addEventListener('change', (e) => {
+                state.activeWorkflowId = e.target.value;
+                saveGlobalState();
+                renderBoardSelect();
+                renderSettingsWorkflowSelect();
+                renderWorkflowsList();
+            });
+        }
+
         settingsBoardSelect.addEventListener('change', (e) => {
             state.activeBoardId = e.target.value;
             saveState();
@@ -2776,6 +2928,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                return;
+            }
+
+            // Arrow Key Navigation for board hierarchy
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+                const direction = e.key.replace('Arrow', '').toLowerCase();
+                navigateBoards(direction);
                 return;
             }
 
