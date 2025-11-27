@@ -15,10 +15,10 @@
         { "id": "gs1", "name": "1st Half", "type": "duration", "hotkey": "h", "color": "#2c3e50", "subTagBoard": null, "width": "half" },
         { "id": "gs2", "name": "2nd Half", "type": "duration", "hotkey": "j", "color": "#34495e", "subTagBoard": null, "width": "half" },
         { "id": "gs_div1", "name": "Game Phase", "type": "section", "color": "#bdc3c7" },
-        { "id": "gs3", "name": "In Possession", "type": "duration", "hotkey": "p", "color": "#27ae60", "subTagBoard": "possession_details", "width": "half" },
-        { "id": "gs4", "name": "Out of Possession", "type": "duration", "hotkey": "o", "color": "#e74c3c", "subTagBoard": null, "width": "half" },
-        { "id": "gs5", "name": "Contested", "type": "duration", "hotkey": "c", "color": "#f39c12", "subTagBoard": null, "width": "half" },
-        { "id": "gs6", "name": "Out of Play", "type": "duration", "hotkey": "x", "color": "#95a5a6", "subTagBoard": null, "width": "half" }
+        { "id": "gs3", "name": "In Possession", "type": "duration", "hotkey": "p", "color": "#27ae60", "subTagBoard": "possession_details", "width": "half", "stateGroup": "possession_phase" },
+        { "id": "gs4", "name": "Out of Possession", "type": "duration", "hotkey": "o", "color": "#e74c3c", "subTagBoard": null, "width": "half", "stateGroup": "possession_phase" },
+        { "id": "gs5", "name": "Contested", "type": "duration", "hotkey": "c", "color": "#f39c12", "subTagBoard": null, "width": "half", "stateGroup": "possession_phase" },
+        { "id": "gs6", "name": "Out of Play", "type": "duration", "hotkey": "x", "color": "#95a5a6", "subTagBoard": null, "width": "half", "stateGroup": "possession_phase" }
       ]
     },
     {

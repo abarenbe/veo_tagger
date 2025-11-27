@@ -207,11 +207,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 { id: 'gs2', name: '2nd Half', type: 'duration', hotkey: 'j', color: '#34495e', subTagBoard: null, width: 'half' },
                 // Section divider
                 { id: 'gs_div1', name: 'Game Phase', type: 'section', color: '#bdc3c7' },
-                // Game phase - possession states (double-tap opens possession board)
-                { id: 'gs3', name: 'In Possession', type: 'duration', hotkey: 'p', color: '#27ae60', subTagBoard: 'possession_details', width: 'half' },
-                { id: 'gs4', name: 'Out of Possession', type: 'duration', hotkey: 'o', color: '#e74c3c', subTagBoard: null, width: 'half' },
-                { id: 'gs5', name: 'Contested', type: 'duration', hotkey: 'c', color: '#f39c12', subTagBoard: null, width: 'half' },
-                { id: 'gs6', name: 'Out of Play', type: 'duration', hotkey: 'x', color: '#95a5a6', subTagBoard: null, width: 'half' }
+                // Game phase - possession states (mutually exclusive via stateGroup)
+                // Starting one automatically ends the others
+                { id: 'gs3', name: 'In Possession', type: 'duration', hotkey: 'p', color: '#27ae60', subTagBoard: 'possession_details', width: 'half', stateGroup: 'possession_phase' },
+                { id: 'gs4', name: 'Out of Possession', type: 'duration', hotkey: 'o', color: '#e74c3c', subTagBoard: null, width: 'half', stateGroup: 'possession_phase' },
+                { id: 'gs5', name: 'Contested', type: 'duration', hotkey: 'c', color: '#f39c12', subTagBoard: null, width: 'half', stateGroup: 'possession_phase' },
+                { id: 'gs6', name: 'Out of Play', type: 'duration', hotkey: 'x', color: '#95a5a6', subTagBoard: null, width: 'half', stateGroup: 'possession_phase' }
             ]
         },
         // ===== POSSESSION DETAILS BOARD =====
@@ -2189,6 +2190,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Tagging Functions ---
+    
+    // End other active duration tags in the same state group (mutually exclusive states)
+    function endOtherStatesInGroup(stateGroup, excludeTagName, timestamp) {
+        // Find all tags in the same state group that are currently active
+        const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
+        if (!activeBoard) return;
+
+        // Get all tag names in this state group from all boards
+        const tagsInGroup = [];
+        state.boards.forEach(board => {
+            board.tags.forEach(t => {
+                if (t.stateGroup === stateGroup && t.name !== excludeTagName) {
+                    tagsInGroup.push(t.name);
+                }
+            });
+        });
+
+        // End any active duration tags from this group
+        tagsInGroup.forEach(tagName => {
+            const activeTagId = state.activeDurationTags[tagName];
+            if (activeTagId) {
+                const activeTag = state.recordedTags.find(t => t.id === activeTagId);
+                if (activeTag) {
+                    activeTag.endTime = timestamp;
+                    activeTag.duration = timestamp - activeTag.timestamp;
+                    console.log(`Auto-ended "${tagName}" due to state change to different state in group "${stateGroup}"`);
+                }
+                delete state.activeDurationTags[tagName];
+            }
+        });
+    }
+
     function triggerTag(tag) {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0]) {
@@ -2240,7 +2273,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const activeTagId = state.activeDurationTags[tag.name];
 
                         if (activeTagId) {
-                            // Stop the active duration tag
+                            // Stop the active duration tag (toggle off)
                             const activeTag = state.recordedTags.find(t => t.id === activeTagId);
                             if (activeTag) {
                                 activeTag.endTime = timestamp;
@@ -2248,6 +2281,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                             delete state.activeDurationTags[tag.name];
                         } else {
+                            // If this tag has a stateGroup, end any other active tags in same group
+                            if (tag.stateGroup) {
+                                endOtherStatesInGroup(tag.stateGroup, tag.name, timestamp);
+                            }
+
                             // Start new duration tag
                             const newTag = {
                                 id: Date.now().toString(),
@@ -2255,6 +2293,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 type: tag.type,
                                 color: tag.color,
                                 hotkey: tag.hotkey,
+                                stateGroup: tag.stateGroup || null,
                                 timestamp: timestamp,
                                 endTime: null,
                                 duration: null,
