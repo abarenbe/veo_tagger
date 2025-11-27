@@ -436,6 +436,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- State Management ---
+    
+    // Migration: Add stateGroup to tags that should be mutually exclusive
+    function migrateStateGroups() {
+        let migrated = false;
+        
+        // Define which tags should have which stateGroup
+        const stateGroupMappings = {
+            'possession_phase': ['In Possession', 'Out of Possession', 'Contested', 'Out of Play']
+        };
+        
+        state.boards.forEach(board => {
+            board.tags.forEach(tag => {
+                // Check each stateGroup mapping
+                for (const [groupName, tagNames] of Object.entries(stateGroupMappings)) {
+                    if (tagNames.includes(tag.name) && !tag.stateGroup) {
+                        tag.stateGroup = groupName;
+                        console.log(`Migrated tag "${tag.name}" to stateGroup "${groupName}"`);
+                        migrated = true;
+                    }
+                }
+            });
+        });
+        
+        if (migrated) {
+            console.log('State group migration complete, saving...');
+            saveGlobalState();
+        }
+    }
+    
     async function loadState() {
         console.log("Loading state...");
         const result = await chrome.storage.local.get(['tagBoards', 'activeBoardId', 'boardTagsList', 'workflows', 'activeWorkflowId', 'teams', 'activeTeamId', 'games']);
@@ -457,6 +486,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Found existing boards:", result.tagBoards.length);
                 state.boards = result.tagBoards;
                 state.activeBoardId = result.activeBoardId || state.boards[0].id;
+                
+                // Migration: Add stateGroup to existing game state tags
+                migrateStateGroups();
             } else {
                 console.log("No boards found (or empty), loading defaults...", DEFAULT_BOARDS);
             state.boards = JSON.parse(JSON.stringify(DEFAULT_BOARDS));
@@ -2193,29 +2225,32 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // End other active duration tags in the same state group (mutually exclusive states)
     function endOtherStatesInGroup(stateGroup, excludeTagName, timestamp) {
-        // Find all tags in the same state group that are currently active
-        const activeBoard = state.boards.find(b => b.id === state.activeBoardId);
-        if (!activeBoard) return;
-
+        console.log(`endOtherStatesInGroup called: stateGroup="${stateGroup}", excludeTagName="${excludeTagName}"`);
+        console.log('Active duration tags:', state.activeDurationTags);
+        
         // Get all tag names in this state group from all boards
         const tagsInGroup = [];
         state.boards.forEach(board => {
             board.tags.forEach(t => {
                 if (t.stateGroup === stateGroup && t.name !== excludeTagName) {
                     tagsInGroup.push(t.name);
+                    console.log(`Found tag in group: "${t.name}" (stateGroup: ${t.stateGroup})`);
                 }
             });
         });
 
+        console.log('Tags in group to check:', tagsInGroup);
+
         // End any active duration tags from this group
         tagsInGroup.forEach(tagName => {
             const activeTagId = state.activeDurationTags[tagName];
+            console.log(`Checking "${tagName}": activeTagId=${activeTagId}`);
             if (activeTagId) {
                 const activeTag = state.recordedTags.find(t => t.id === activeTagId);
                 if (activeTag) {
                     activeTag.endTime = timestamp;
                     activeTag.duration = timestamp - activeTag.timestamp;
-                    console.log(`Auto-ended "${tagName}" due to state change to different state in group "${stateGroup}"`);
+                    console.log(`Auto-ended "${tagName}" due to state change in group "${stateGroup}"`);
                 }
                 delete state.activeDurationTags[tagName];
             }
@@ -2282,8 +2317,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             delete state.activeDurationTags[tag.name];
                         } else {
                             // If this tag has a stateGroup, end any other active tags in same group
+                            console.log(`Starting duration tag: "${tag.name}", stateGroup: ${tag.stateGroup}`);
                             if (tag.stateGroup) {
                                 endOtherStatesInGroup(tag.stateGroup, tag.name, timestamp);
+                            } else {
+                                console.log(`Tag "${tag.name}" has no stateGroup - boards may need reset`);
                             }
 
                             // Start new duration tag
